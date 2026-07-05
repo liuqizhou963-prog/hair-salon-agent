@@ -34,12 +34,12 @@ def get_db():
 
 def init_db():
     """创建所有数据库表"""
-    logger.info("🔨 创建数据库表...")
+    logger.info("🔨 创建数据库表...")  
     Base.metadata.create_all(bind=engine)
     logger.info("✅ 数据库初始化完成")
 
 def drop_all_tables():
     """删除所有表（为了测试）"""
-    logger.warning("⚠️ 删除所有数据库表...")
+    logger.warning("⚠️ 删除所有数据库表...") 
     Base.metadata.drop_all(bind=engine)
     logger.info("✅ 数据库表已删除")

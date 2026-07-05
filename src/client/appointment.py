@@ -1,4 +1,4 @@
-"""客户预约管理\u670d务\uff08\u5df2与 PostgreSQL 集成\uff09"""
+"""客户预约管理\u670d\u52a1\uff08\u5df2与 PostgreSQL 集成\uff09"""
 
 from loguru import logger
 from typing import List, Dict, Any, Optional
@@ -82,8 +82,9 @@ class ClientAppointmentService:
             logger.info(f"\ud83c\udc61 \u5ba2\u6237: {customer.name} ({customer.id})")
             
             # \u6b65\u9aa42\uff1a\u68c0\u67e5\u65f6\u95f4\u69fd
-            slot = db.query(__import__('src.database.models', fromlist=['StylistTimeSlot']).StylistTimeSlot).filter(
-                __import__('src.database.models', fromlist=['StylistTimeSlot']).StylistTimeSlot.id == uuid.UUID(slot_id)
+            from src.database.models import StylistTimeSlot
+            slot = db.query(StylistTimeSlot).filter(
+                StylistTimeSlot.id == uuid.UUID(slot_id)
             ).first()
             
             if not slot or slot.is_booked:
@@ -143,8 +144,9 @@ class ClientAppointmentService:
         
         db = SessionLocal()
         try:
-            customer = db.query(__import__('src.database.models', fromlist=['User']).User).filter(
-                __import__('src.database.models', fromlist=['User']).User.phone == customer_phone
+            from src.database.models import User
+            customer = db.query(User).filter(
+                User.phone == customer_phone
             ).first()
             
             if not customer:

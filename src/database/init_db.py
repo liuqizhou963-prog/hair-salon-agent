@@ -13,7 +13,7 @@ from src.database.service import (
 )
 
 def init_database():
-    """\u521d\u59cb\u5316\u6570\u636e\u5e93表\u7ed3\u6784"""
+    """\u521b\u59cb\u5316\u6570\u636e\u5e93\u8868\u7ed3\u6784"""
     logger.info("\ud83d\udd28 \u521b\u5efa\u6570\u636e\u5e93\u8868...")
     init_db()
     logger.info("\u2705 \u6570\u636e\u5e93\u521d\u59cb\u5316\u5b8c\u6210")

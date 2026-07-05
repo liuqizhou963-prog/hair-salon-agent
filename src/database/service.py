@@ -65,7 +65,7 @@ class StylistService:
         db.add(user)
         db.flush()
         
-        # \u7136\u540e\u521b\u5efa\u53d1\u578b\u5e08记\u5f55
+        # \u7136\u540e\u521b\u5efa\u53d1\u578b\u5e08\u8bb0\u5f55
         stylist = Stylist(
             id=uuid.uuid4(),
             user_id=user.id,
@@ -242,7 +242,7 @@ class AppointmentService:
     
     @staticmethod
     def get_appointments_by_stylist(db: Session, stylist_id: str, date: str = None) -> List[Appointment]:
-        """\u83b7\u53d6\u53d1\u578b\u5e08\u7684\u9884\u7ea6日\u7a0b"""
+        """\u83b7\u53d6\u53d1\u578b\u5e08\u7684\u9884\u7ea6\u65e5\u7a0b"""
         query = db.query(Appointment).filter(
             Appointment.stylist_id == uuid.UUID(stylist_id)
         )

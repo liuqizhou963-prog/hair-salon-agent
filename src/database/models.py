@@ -10,13 +10,13 @@ import enum
 from src.database.connection import Base
 
 class UserRole(enum.Enum):
-    """\u7528户角色"""
+    """\u7528\u6237\u89d2\u8272"""
     CUSTOMER = "customer"
     STYLIST = "stylist"
     ADMIN = "admin"
 
 class AppointmentStatus(enum.Enum):
-    """\u9884约\u72b6态"""
+    """\u9884\u7ea6\u72b6\u6001"""
     PENDING = "pending"
     CONFIRMED = "confirmed"
     COMPLETED = "completed"
