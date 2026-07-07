@@ -1,0 +1,1920 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hair Salon AI Agent UI Model</title>
+  <style>
+    :root {
+      --bg: #f6f2ec;
+      --surface: #fffdf9;
+      --surface-2: #fbf7f1;
+      --ink: #1f2423;
+      --muted: #66706d;
+      --line: #e4dbcf;
+      --brand: #a5533f;
+      --brand-strong: #773526;
+      --teal: #1f766f;
+      --teal-soft: #e0f0ed;
+      --plum: #6b4fb3;
+      --plum-soft: #ece7fb;
+      --gold: #bc8b32;
+      --butter: #ffe7a3;
+      --butter-strong: #f3b51f;
+      --danger: #b42318;
+      --shadow: 0 18px 50px rgba(70, 45, 28, 0.12);
+      --soft-shadow: 0 10px 30px rgba(70, 45, 28, 0.08);
+      font-family: Inter, "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(135deg, rgba(165, 83, 63, 0.12), transparent 32%),
+        linear-gradient(315deg, rgba(31, 118, 111, 0.12), transparent 30%),
+        var(--bg);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      border: 0;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .page {
+      width: min(1480px, 100%);
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 24px;
+    }
+
+    .eyebrow {
+      margin: 0 0 8px;
+      color: var(--brand);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: clamp(30px, 4vw, 52px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .hero p {
+      max-width: 780px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.7;
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+
+    .chip {
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255, 253, 249, 0.8);
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--brand);
+    }
+
+    .dot.teal {
+      background: var(--teal);
+    }
+
+    .dot.plum {
+      background: var(--plum);
+    }
+
+    .showcase {
+      display: grid;
+      grid-template-columns: 430px minmax(0, 1fr);
+      gap: 26px;
+      align-items: start;
+    }
+
+    .phone-shell {
+      position: sticky;
+      top: 24px;
+      padding: 18px;
+      border-radius: 34px;
+      background: #171a19;
+      box-shadow: 0 28px 70px rgba(31, 36, 35, 0.24);
+    }
+
+    .phone {
+      overflow: hidden;
+      min-height: 812px;
+      border-radius: 24px;
+      background: var(--surface);
+    }
+
+    .phone-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 68px;
+      padding: 18px 18px 10px;
+      background:
+        linear-gradient(135deg, rgba(165, 83, 63, 0.13), rgba(31, 118, 111, 0.1)),
+        var(--surface);
+    }
+
+    .store {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .mark {
+      width: 40px;
+      height: 40px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 12px;
+      color: white;
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+      font-weight: 800;
+    }
+
+    .store strong,
+    .store span {
+      display: block;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .store span {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .profile-pill {
+      min-height: 36px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .phone-main {
+      min-height: 655px;
+      padding: 18px;
+      background:
+        linear-gradient(180deg, rgba(255, 253, 249, 0.86), rgba(246, 242, 236, 0.75)),
+        var(--surface);
+    }
+
+    .mobile-screen {
+      display: none;
+    }
+
+    .mobile-screen.active {
+      display: block;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+
+    .section-title h2 {
+      margin-bottom: 3px;
+      font-size: 21px;
+      line-height: 1.2;
+    }
+
+    .section-title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .mini-action {
+      min-height: 36px;
+      padding: 8px 11px;
+      border-radius: 999px;
+      color: var(--plum);
+      background: var(--plum-soft);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .ai-panel,
+    .mobile-card,
+    .admin-card,
+    .login-card {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 253, 249, 0.92);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .ai-panel {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .chat-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .chat-row.user {
+      justify-content: flex-end;
+    }
+
+    .avatar {
+      width: 30px;
+      height: 30px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      border-radius: 10px;
+      color: white;
+      background: var(--plum);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .bubble {
+      max-width: 80%;
+      padding: 11px 12px;
+      border-radius: 16px;
+      background: white;
+      color: var(--ink);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .user .bubble {
+      color: white;
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+    }
+
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .quick-grid button,
+    .primary-button,
+    .ghost-button {
+      min-height: 44px;
+      border-radius: 14px;
+      font-weight: 800;
+    }
+
+    .quick-grid button {
+      color: var(--teal);
+      background: var(--teal-soft);
+      font-size: 13px;
+    }
+
+    .composer {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: white;
+    }
+
+    .composer input {
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      color: var(--ink);
+    }
+
+    .send {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      color: white;
+      background: var(--brand);
+      font-weight: 900;
+    }
+
+    .mobile-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .mobile-card {
+      padding: 14px;
+    }
+
+    .stylist-head {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .portrait {
+      width: 52px;
+      height: 52px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      color: white;
+      background: linear-gradient(135deg, var(--teal), #0e514d);
+      font-weight: 900;
+    }
+
+    .stylist-head h3 {
+      margin: 0 0 5px;
+      font-size: 16px;
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .tag {
+      padding: 6px 8px;
+      border-radius: 999px;
+      color: var(--brand-strong);
+      background: #f8e9e3;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .slot-row {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 7px;
+      margin-top: 12px;
+    }
+
+    .slot {
+      min-height: 38px;
+      display: grid;
+      place-items: center;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: white;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--line);
+    }
+
+    .status {
+      padding: 6px 8px;
+      border-radius: 999px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .danger-link {
+      color: var(--danger);
+      background: transparent;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .phone-tabs {
+      display: grid;
+      grid-template-columns: repeat(11, 1fr);
+      gap: 4px;
+      padding: 8px 10px 12px;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 253, 249, 0.96);
+    }
+
+    .phone-tab {
+      min-height: 52px;
+      border-radius: 14px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 10.5px;
+      font-weight: 800;
+    }
+
+    .phone-tab.active {
+      color: var(--brand-strong);
+      background: #f8e9e3;
+    }
+
+    .desktop-shell {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: rgba(255, 253, 249, 0.94);
+      box-shadow: var(--shadow);
+    }
+
+    .desktop {
+      display: grid;
+      grid-template-columns: 238px minmax(0, 1fr);
+      min-height: 812px;
+    }
+
+    .sidebar {
+      padding: 22px;
+      border-right: 1px solid var(--line);
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(251, 247, 241, 0.95)),
+        var(--surface-2);
+    }
+
+    .side-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 28px;
+    }
+
+    .side-brand strong {
+      display: block;
+      font-size: 16px;
+    }
+
+    .side-brand span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .nav {
+      display: grid;
+      gap: 8px;
+    }
+
+    .nav button {
+      min-height: 44px;
+      display: grid;
+      grid-template-columns: 26px 1fr;
+      gap: 10px;
+      align-items: center;
+      padding: 9px 11px;
+      border-radius: 14px;
+      color: var(--muted);
+      background: transparent;
+      text-align: left;
+      font-weight: 800;
+    }
+
+    .nav button::before {
+      content: attr(data-icon);
+      width: 26px;
+      height: 26px;
+      display: grid;
+      place-items: center;
+      border-radius: 9px;
+      color: var(--muted);
+      background: rgba(31, 36, 35, 0.06);
+      font-size: 11px;
+    }
+
+    .nav button.active {
+      color: var(--brand-strong);
+      background: #f8e9e3;
+    }
+
+    .nav button.active::before {
+      color: white;
+      background: var(--brand);
+    }
+
+    .desktop-main {
+      min-width: 0;
+      padding: 22px;
+    }
+
+    .desktop-top {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+
+    .desktop-top h2 {
+      margin-bottom: 4px;
+      font-size: 26px;
+    }
+
+    .desktop-top p {
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .admin-user {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: white;
+      white-space: nowrap;
+    }
+
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .metric {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: white;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 8px;
+      font-size: 26px;
+      line-height: 1;
+    }
+
+    .metric small {
+      display: block;
+      margin-top: 8px;
+      color: var(--teal);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(300px, 0.8fr);
+      gap: 14px;
+      align-items: start;
+    }
+
+    .admin-card {
+      padding: 16px;
+    }
+
+    .admin-card h3 {
+      margin-bottom: 12px;
+      font-size: 17px;
+    }
+
+    .timeline {
+      display: grid;
+      gap: 10px;
+    }
+
+    .timeline-item {
+      display: grid;
+      grid-template-columns: 64px minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+    }
+
+    .time {
+      color: var(--brand-strong);
+      font-weight: 900;
+    }
+
+    .timeline-item strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 14px;
+    }
+
+    .timeline-item span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .state {
+      padding: 6px 8px;
+      border-radius: 999px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .ai-suggestion {
+      padding: 14px;
+      border-radius: 16px;
+      background: var(--plum-soft);
+      color: #3d2c71;
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .member-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .member-row:last-child {
+      border-bottom: 0;
+    }
+
+    .member-row strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: 14px;
+    }
+
+    .member-row span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .primary-button {
+      min-width: 120px;
+      padding: 0 16px;
+      color: white;
+      background: linear-gradient(135deg, var(--brand), var(--brand-strong));
+    }
+
+    .ghost-button {
+      min-width: 110px;
+      padding: 0 15px;
+      color: var(--teal);
+      background: var(--teal-soft);
+    }
+
+    .login-strip {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 26px;
+    }
+
+    .login-card {
+      padding: 18px;
+    }
+
+    .login-card h3 {
+      margin-bottom: 6px;
+      font-size: 18px;
+    }
+
+    .login-card p {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .field input {
+      min-height: 44px;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      outline: 0;
+      background: white;
+    }
+
+    .field input:focus {
+      border-color: var(--brand);
+      box-shadow: 0 0 0 4px rgba(165, 83, 63, 0.12);
+    }
+
+    .splash-screen {
+      min-height: 655px;
+      display: grid;
+      place-items: center;
+      padding: 26px;
+      border-radius: 22px;
+      background:
+        radial-gradient(circle at 32% 18%, rgba(255, 255, 255, 0.64), transparent 28%),
+        linear-gradient(145deg, #241916, #8f4333 52%, #1f766f);
+      color: white;
+      text-align: center;
+      animation: splashFade 2.4s ease-in-out infinite alternate;
+    }
+
+    .brand-orb {
+      position: relative;
+      width: 144px;
+      height: 144px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 26px;
+      border: 1px solid rgba(255, 255, 255, 0.28);
+      border-radius: 42px;
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow: 0 30px 70px rgba(0, 0, 0, 0.24);
+      overflow: hidden;
+    }
+
+    .brand-orb::before,
+    .brand-orb::after {
+      content: "";
+      position: absolute;
+      width: 150px;
+      height: 74px;
+      border: 2px solid rgba(255, 255, 255, 0.52);
+      border-color: rgba(255, 255, 255, 0.52) transparent transparent transparent;
+      border-radius: 50%;
+      transform: rotate(-18deg);
+      animation: hairSweep 1.8s ease-in-out infinite alternate;
+    }
+
+    .brand-orb::after {
+      width: 108px;
+      height: 54px;
+      transform: rotate(-28deg) translateY(14px);
+      opacity: 0.7;
+      animation-delay: 0.18s;
+    }
+
+    .brand-letter {
+      position: relative;
+      z-index: 1;
+      font-size: 58px;
+      font-weight: 900;
+      letter-spacing: 0;
+    }
+
+    .splash-screen h2 {
+      margin-bottom: 9px;
+      font-size: 30px;
+      line-height: 1.08;
+    }
+
+    .splash-screen p {
+      max-width: 260px;
+      margin: 0 auto;
+      color: rgba(255, 255, 255, 0.76);
+      line-height: 1.65;
+      font-size: 14px;
+    }
+
+    .loading-line {
+      width: 158px;
+      height: 4px;
+      margin: 28px auto 0;
+      overflow: hidden;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.25);
+    }
+
+    .loading-line span {
+      display: block;
+      width: 52%;
+      height: 100%;
+      border-radius: inherit;
+      background: white;
+      animation: loadingMove 1.4s ease-in-out infinite;
+    }
+
+    .auth-layout {
+      display: grid;
+      gap: 14px;
+    }
+
+    .auth-layout.clean {
+      min-height: 655px;
+      align-content: start;
+      padding: 18px 2px 4px;
+      background: #fff;
+    }
+
+    .auth-logo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 4px;
+    }
+
+    .auth-logo-row .mark {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+    }
+
+    .auth-title {
+      margin: 10px 0 4px;
+      font-size: 27px;
+      line-height: 1.15;
+    }
+
+    .auth-title.plain {
+      margin-top: 0;
+      font-size: 24px;
+    }
+
+    .auth-subtitle {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .auth-hero {
+      padding: 18px;
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, rgba(165, 83, 63, 0.13), rgba(31, 118, 111, 0.12)),
+        white;
+      border: 1px solid var(--line);
+    }
+
+    .auth-hero h2 {
+      margin-bottom: 8px;
+      font-size: 25px;
+      line-height: 1.12;
+    }
+
+    .auth-hero p {
+      margin-bottom: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 13px;
+    }
+
+    .auth-switch {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: white;
+    }
+
+    .auth-switch button {
+      min-height: 42px;
+      border-radius: 12px;
+      color: var(--muted);
+      background: transparent;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .auth-switch button.active {
+      color: white;
+      background: var(--brand);
+    }
+
+    .form-card {
+      display: grid;
+      gap: 12px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 253, 249, 0.95);
+      box-shadow: var(--soft-shadow);
+    }
+
+    .form-card h3 {
+      margin-bottom: 0;
+      font-size: 17px;
+    }
+
+    .form-card .field-row {
+      grid-template-columns: 1fr;
+      margin-top: 0;
+    }
+
+    .form-card.flat {
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .clean .field {
+      gap: 8px;
+      color: var(--ink);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .clean .field input {
+      min-height: 48px;
+      border-color: #e4e7ed;
+      border-radius: 10px;
+      color: var(--ink);
+      font-size: 14px;
+      background: #fff;
+    }
+
+    .clean .field input::placeholder {
+      color: #a2a9b4;
+    }
+
+    .password-wrap {
+      position: relative;
+    }
+
+    .password-wrap input {
+      padding-right: 46px;
+    }
+
+    .eye-button {
+      position: absolute;
+      right: 8px;
+      bottom: 5px;
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      color: #8d96a3;
+      background: transparent;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .forgot-link {
+      justify-self: end;
+      color: var(--butter-strong);
+      background: transparent;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .login-button {
+      min-height: 51px;
+      width: 100%;
+      margin-top: 26px;
+      border-radius: 12px;
+      color: white;
+      background: var(--butter);
+      font-size: 15px;
+      font-weight: 900;
+      box-shadow: none;
+    }
+
+    .divider {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 12px;
+      align-items: center;
+      margin: 8px 0;
+      color: #8d96a3;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .divider::before,
+    .divider::after {
+      content: "";
+      height: 1px;
+      background: #eceff3;
+    }
+
+    .wechat-outline {
+      min-height: 48px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      border: 1px solid #e4e7ed;
+      border-radius: 12px;
+      color: var(--ink);
+      background: white;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .auth-option-list {
+      display: grid;
+      gap: 14px;
+      margin-top: 8px;
+    }
+
+    .auth-option {
+      min-height: 48px;
+      display: grid;
+      grid-template-columns: 42px 1fr 24px;
+      gap: 8px;
+      align-items: center;
+      border: 1px solid #e4e7ed;
+      border-radius: 9px;
+      background: white;
+      color: var(--ink);
+      font-size: 15px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .auth-option .method-icon {
+      justify-self: center;
+    }
+
+    .method-svg {
+      width: 24px;
+      height: 24px;
+      justify-self: center;
+      align-self: center;
+      color: #3b82f6;
+      flex: 0 0 auto;
+    }
+
+    .method-icon {
+      width: 24px;
+      height: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      color: white;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .method-icon.wechat {
+      border-radius: 50%;
+      background: #07c160;
+    }
+
+    .method-icon.alipay {
+      background: #1677ff;
+    }
+
+    .method-icon.apple {
+      color: #000;
+      background: transparent;
+      font-size: 22px;
+    }
+
+    .password-entry {
+      min-height: 52px;
+      width: 100%;
+      margin-top: 10px;
+      border-radius: 10px;
+      color: white;
+      background: #ffb700;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .register-link {
+      color: var(--butter-strong);
+      background: transparent;
+      font-weight: 900;
+    }
+
+    .back-link {
+      justify-self: start;
+      min-height: 36px;
+      padding: 0;
+      color: var(--muted);
+      background: transparent;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .wechat-icon {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: white;
+      background: #07c160;
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .register-card {
+      display: grid;
+      gap: 11px;
+      margin-top: 3px;
+      padding: 14px;
+      border: 1px solid #eef0f4;
+      border-radius: 14px;
+      background: #fbfcfd;
+    }
+
+    .register-card.flat {
+      margin-top: 0;
+      padding: 0;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+    }
+
+    .register-card h3,
+    .profile-form h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+
+    .profile-onboarding {
+      min-height: 655px;
+      display: grid;
+      align-content: start;
+      gap: 14px;
+      padding: 14px 2px 4px;
+      background: #fff;
+    }
+
+    .profile-banner {
+      padding: 18px;
+      border-radius: 18px;
+      color: white;
+      background: linear-gradient(135deg, var(--brand), var(--teal));
+    }
+
+    .profile-banner h2 {
+      margin-bottom: 7px;
+      font-size: 25px;
+      line-height: 1.16;
+    }
+
+    .profile-banner p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    .profile-form {
+      display: grid;
+      gap: 12px;
+      padding: 16px;
+      border: 1px solid #eef0f4;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: var(--soft-shadow);
+    }
+
+    .profile-form .profile-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .code-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+    }
+
+    .code-button {
+      min-width: 96px;
+      min-height: 44px;
+      padding: 0 12px;
+      border-radius: 14px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .wechat-button {
+      min-height: 48px;
+      border-radius: 15px;
+      color: white;
+      background: var(--teal);
+      font-weight: 900;
+    }
+
+    .helper-copy {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .profile-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+    }
+
+    .profile-grid .field {
+      min-width: 0;
+    }
+
+    .full-span {
+      grid-column: 1 / -1;
+    }
+
+    @keyframes splashFade {
+      from {
+        filter: saturate(0.92) brightness(0.96);
+      }
+      to {
+        filter: saturate(1.08) brightness(1.04);
+      }
+    }
+
+    @keyframes hairSweep {
+      from {
+        transform: rotate(-20deg) translateX(-8px);
+      }
+      to {
+        transform: rotate(-13deg) translateX(8px);
+      }
+    }
+
+    @keyframes loadingMove {
+      0% {
+        transform: translateX(-110%);
+      }
+      100% {
+        transform: translateX(210%);
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .showcase,
+      .desktop,
+      .admin-grid,
+      .metric-grid,
+      .login-strip {
+        grid-template-columns: 1fr;
+      }
+
+      .phone-shell {
+        position: static;
+        width: min(430px, 100%);
+        margin: 0 auto;
+      }
+
+      .sidebar {
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .nav {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 680px) {
+      .page {
+        padding: 18px;
+      }
+
+      .hero,
+      .desktop-top,
+      .field-row,
+      .timeline-item {
+        grid-template-columns: 1fr;
+      }
+
+      .legend {
+        justify-content: flex-start;
+      }
+
+      .phone-shell {
+        padding: 10px;
+        border-radius: 26px;
+      }
+
+      .phone {
+        min-height: 760px;
+      }
+
+      .nav {
+        grid-template-columns: 1fr;
+      }
+
+      .phone-tabs {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .slot-row {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">UI MODEL / UNIAPP + FASTAPI</p>
+        <h1>美发门店 AI 客户端与经营端原型</h1>
+        <p>客户用 H5 或微信小程序完成 AI 预约、查空档和查预约；店长在网页经营端查看同一套后端数据、日程、会员和营销机会。</p>
+      </div>
+      <div class="legend" aria-label="设计标签">
+        <span class="chip"><span class="dot"></span> 暖铜品牌色</span>
+        <span class="chip"><span class="dot teal"></span> 门店运营</span>
+        <span class="chip"><span class="dot plum"></span> AI 提醒</span>
+      </div>
+    </header>
+
+    <section class="showcase">
+      <div class="phone-shell" aria-label="客户小程序原型">
+        <div class="phone">
+          <div class="phone-top">
+            <div class="store">
+              <div class="mark">H</div>
+              <div>
+                <strong>恒艺美发</strong>
+                <span>AI 预约助手在线</span>
+              </div>
+            </div>
+            <button class="profile-pill">139****0001</button>
+          </div>
+
+          <div class="phone-main">
+            <section class="mobile-screen active" data-screen="launch">
+              <div class="splash-screen">
+                <div>
+                  <div class="brand-orb" aria-label="美发本家品牌图像">
+                    <span class="brand-letter">H</span>
+                  </div>
+                  <h2>美发本家</h2>
+                  <p>让 AI 前台先理解你的需求，再帮你找到合适的发型师和护理时间。</p>
+                  <div class="loading-line" aria-label="启动加载动画"><span></span></div>
+                </div>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="login">
+              <div class="auth-layout clean">
+                <h2 class="auth-title plain">选择登录方式</h2>
+                <p class="auth-subtitle">登录后进入美发本家 AI 预约和会员服务。新用户可以先选择注册。</p>
+
+                <div class="auth-option-list" aria-label="第三方和手机号登录方式">
+                  <button class="auth-option" data-jump="profile">
+                    <span class="method-icon wechat">微</span>
+                    <span>使用 微信 登录</span>
+                    <span></span>
+                  </button>
+                  <button class="auth-option" data-jump="phone">
+                    <svg class="method-svg" viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="7" y="2.75" width="10" height="18.5" rx="2" fill="none" stroke="currentColor" stroke-width="2" />
+                      <path d="M10 6h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                      <circle cx="12" cy="18" r="1" fill="currentColor" />
+                    </svg>
+                    <span>使用 手机号 登录</span>
+                    <span></span>
+                  </button>
+                </div>
+
+                <div class="divider" style="margin-top:18px;">或</div>
+                <button class="password-entry" data-jump="password">使用密码登录</button>
+                <p class="helper-copy" style="text-align:center;">没有账号？<button class="register-link" data-jump="register">注册新账号</button></p>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="password">
+              <div class="auth-layout clean">
+                <h2 class="auth-title plain">密码登录</h2>
+                <p class="auth-subtitle">输入手机号或邮箱和密码。后续正式开发时，这里也可以支持验证码登录切换。</p>
+                <div class="form-card flat">
+                  <label class="field">电子邮件 / 手机号
+                    <input value="123456@qq.com" inputmode="email" placeholder="输入您的电子邮箱或手机号" />
+                  </label>
+                  <label class="field password-wrap">密码
+                    <input value="" type="password" placeholder="输入您的密码" />
+                    <button class="eye-button" aria-label="显示密码">◎</button>
+                  </label>
+                  <button class="forgot-link" data-jump="forgot">忘记密码?</button>
+                  <button class="login-button" data-jump="profile">登录</button>
+                </div>
+
+                <div class="divider">或</div>
+
+                <button class="wechat-outline" data-jump="profile">
+                  <span class="wechat-icon">微</span>
+                  使用 微信 登录
+                </button>
+                <p class="helper-copy" style="text-align:center;">新用户？<button class="register-link" data-jump="register">创建账号</button></p>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="phone">
+              <div class="auth-layout clean">
+                <button class="back-link" data-jump="login">返回登录方式</button>
+                <h2 class="auth-title plain">手机号登录</h2>
+                <p class="auth-subtitle">输入手机号并获取验证码。验证码登录成功后，如果资料未完善，会进入昵称资料页。</p>
+                <div class="form-card flat">
+                  <label class="field">手机号
+                    <input value="13900000001" inputmode="tel" placeholder="输入手机号" />
+                  </label>
+                  <div class="code-row">
+                    <label class="field">验证码
+                      <input value="" inputmode="numeric" placeholder="输入验证码" />
+                    </label>
+                    <button class="code-button" data-code-feedback="验证码已发送">发送验证码</button>
+                  </div>
+                  <button class="login-button" data-jump="profile">登录</button>
+                </div>
+                <div class="divider">或</div>
+                <button class="wechat-outline" data-jump="profile">
+                  <span class="wechat-icon">微</span>
+                  使用 微信 登录
+                </button>
+                <p class="helper-copy" style="text-align:center;">没有账号？<button class="register-link" data-jump="register">注册新账号</button></p>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="forgot">
+              <div class="auth-layout clean">
+                <button class="back-link" data-jump="password">返回密码登录</button>
+                <h2 class="auth-title plain">找回密码</h2>
+                <p class="auth-subtitle">通过手机号或邮箱验证身份，重新设置密码。</p>
+                <div class="form-card flat">
+                  <label class="field">手机号 / 电子邮件
+                    <input value="123456@qq.com" inputmode="email" placeholder="输入手机号或邮箱" />
+                  </label>
+                  <div class="code-row">
+                    <label class="field">验证码
+                      <input value="" inputmode="numeric" placeholder="输入验证码" />
+                    </label>
+                    <button class="code-button" data-code-feedback="验证码已发送">发送验证码</button>
+                  </div>
+                  <label class="field password-wrap">新密码
+                    <input value="" type="password" placeholder="输入新密码" />
+                    <button class="eye-button" aria-label="显示密码">◎</button>
+                  </label>
+                  <button class="login-button" data-jump="password">重置密码</button>
+                </div>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="register">
+              <div class="auth-layout clean">
+                <h2 class="auth-title plain">创建您的帐户</h2>
+                <p class="auth-subtitle">先完成账号创建。下一步再填写昵称、生日等会员资料。</p>
+                <div class="register-card flat">
+                  <label class="field">昵称<input value="" placeholder="输入你的名字" /></label>
+                  <label class="field">电话号码
+                    <input value="+86  ·  输入电话号码" inputmode="tel" />
+                  </label>
+                  <label class="field">电子邮件<input value="" inputmode="email" placeholder="输入你的电子邮箱" /></label>
+                  <label class="field password-wrap">密码
+                    <input value="" type="password" placeholder="输入您的密码" />
+                    <button class="eye-button" aria-label="显示密码">◎</button>
+                  </label>
+                  <button class="login-button" data-jump="profile">注册</button>
+                  <p class="helper-copy" style="text-align:center;">注册即表示您同意美发本家的用户协议和隐私政策。</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="profile">
+              <div class="profile-onboarding clean">
+                <div class="profile-banner">
+                  <h2>完善你的昵称信息</h2>
+                  <p>这一步在登录或注册之后出现。先收集最少资料，方便预约称呼、生日关怀和会员权益。</p>
+                </div>
+                <div class="profile-form">
+                  <h3>基础资料</h3>
+                  <div class="profile-grid">
+                    <label class="field">昵称<input value="小美" placeholder="例如：小美" /></label>
+                    <label class="field">生日<input value="07-08" inputmode="numeric" placeholder="MM-DD" /></label>
+                    <label class="field">电子邮箱，可选<input value="" inputmode="email" placeholder="用于接收生日礼券或活动提醒" /></label>
+                  </div>
+                  <button class="primary-button" style="width:100%;" data-jump="ai">完成</button>
+                  <p class="helper-copy">生日是必要业务信息；邮箱先不强制，后期做邮件营销时再打开。</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="ai">
+              <div class="section-title">
+                <div>
+                  <h2>AI 预约</h2>
+                  <p>自然语言完成推荐、查档、预约。</p>
+                </div>
+                <button class="mini-action">智能推荐</button>
+              </div>
+              <div class="ai-panel">
+                <div class="chat-row">
+                  <div class="avatar">AI</div>
+                  <div class="bubble">你好，我可以帮你推荐发型师、查询空档、预约护理，也可以回答烫染后的护理问题。</div>
+                </div>
+                <div class="chat-row user">
+                  <div class="bubble">推荐一个擅长护理的发型师</div>
+                </div>
+                <div class="chat-row">
+                  <div class="avatar">AI</div>
+                  <div class="bubble">推荐 Ada，评分 4.9，擅长头皮护理和修复护理。今天 14:00、16:00 还有空档。</div>
+                </div>
+              </div>
+              <div class="quick-grid">
+                <button>推荐护理</button>
+                <button>查看今天空档</button>
+                <button>查询我的预约</button>
+                <button>护理怎么做</button>
+              </div>
+              <div class="composer">
+                <input aria-label="输入消息" value="我想预约今天下午护理" />
+                <button class="send" aria-label="发送">Go</button>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="stylists">
+              <div class="section-title">
+                <div>
+                  <h2>发型师</h2>
+                  <p>按服务筛选，直接选择可约时间。</p>
+                </div>
+                <button class="mini-action">护理</button>
+              </div>
+              <div class="mobile-list">
+                <article class="mobile-card">
+                  <div class="stylist-head">
+                    <div class="portrait">A</div>
+                    <div>
+                      <h3>Ada 刘</h3>
+                      <div class="meta">4.9 分 · 8 年经验 · 护理 / 头皮 / 烫后修复</div>
+                    </div>
+                  </div>
+                  <div class="tag-row">
+                    <span class="tag">护理专家</span>
+                    <span class="tag">今日可约</span>
+                  </div>
+                  <div class="slot-row">
+                    <button class="slot">14:00</button>
+                    <button class="slot">16:00</button>
+                    <button class="slot">17:00</button>
+                  </div>
+                </article>
+                <article class="mobile-card">
+                  <div class="stylist-head">
+                    <div class="portrait">M</div>
+                    <div>
+                      <h3>Ming 陈</h3>
+                      <div class="meta">4.8 分 · 6 年经验 · 烫染 / 造型 / 发质诊断</div>
+                    </div>
+                  </div>
+                  <div class="slot-row">
+                    <button class="slot">明天 10:00</button>
+                    <button class="slot">明天 15:00</button>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="orders">
+              <div class="section-title">
+                <div>
+                  <h2>我的预约</h2>
+                  <p>同一手机号在 H5 和小程序都能查看。</p>
+                </div>
+                <button class="mini-action">待到店</button>
+              </div>
+              <div class="mobile-list">
+                <article class="mobile-card">
+                  <h3>深层护理</h3>
+                  <div class="meta">Ada 刘 · 2026-07-08 16:00</div>
+                  <div class="status-line">
+                    <span class="status">已确认</span>
+                    <button class="danger-link">取消预约</button>
+                  </div>
+                </article>
+                <article class="mobile-card">
+                  <h3>烫后修复咨询</h3>
+                  <div class="meta">Ming 陈 · 2026-07-10 11:00</div>
+                  <div class="status-line">
+                    <span class="status">待到店</span>
+                    <button class="danger-link">取消预约</button>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="mine">
+              <div class="section-title">
+                <div>
+                  <h2>我的</h2>
+                  <p>轻量登录，手机号识别客户身份。</p>
+                </div>
+              </div>
+              <article class="mobile-card">
+                <div class="stylist-head">
+                  <div class="portrait">客</div>
+                  <div>
+                    <h3>测试客户</h3>
+                    <div class="meta">13900000001 · silver 会员 · 398 积分</div>
+                  </div>
+                </div>
+                <div class="tag-row">
+                  <span class="tag">生日礼券未领取</span>
+                  <span class="tag">常约护理</span>
+                </div>
+              </article>
+              <div class="login-card" style="margin-top:12px;">
+                <h3>客户登录模型</h3>
+                <p>小程序/H5 第一版用手机号和姓名进入，后端返回客户 Token。</p>
+                <div class="field-row">
+                  <label class="field">手机号<input value="13900000001" inputmode="tel" /></label>
+                  <label class="field">姓名<input value="测试客户" /></label>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <nav class="phone-tabs" aria-label="客户端导航">
+            <button class="phone-tab active" data-target="launch">启动</button>
+            <button class="phone-tab" data-target="login">选择</button>
+            <button class="phone-tab" data-target="phone">手机</button>
+            <button class="phone-tab" data-target="password">密码</button>
+            <button class="phone-tab" data-target="forgot">找回</button>
+            <button class="phone-tab" data-target="register">注册</button>
+            <button class="phone-tab" data-target="profile">资料</button>
+            <button class="phone-tab" data-target="ai">AI</button>
+            <button class="phone-tab" data-target="stylists">发型师</button>
+            <button class="phone-tab" data-target="orders">预约</button>
+            <button class="phone-tab" data-target="mine">我的</button>
+          </nav>
+        </div>
+      </div>
+
+      <div>
+        <section class="desktop-shell" aria-label="经营端网页原型">
+          <div class="desktop">
+            <aside class="sidebar">
+              <div class="side-brand">
+                <div class="mark">H</div>
+                <div>
+                  <strong>经营端</strong>
+                  <span>Salon Ops Console</span>
+                </div>
+              </div>
+              <nav class="nav">
+                <button class="active" data-icon="01">今日概览</button>
+                <button data-icon="02">预约管理</button>
+                <button data-icon="03">员工日程</button>
+                <button data-icon="04">会员管理</button>
+                <button data-icon="05">生日营销</button>
+                <button data-icon="06">AI 测试</button>
+              </nav>
+            </aside>
+
+            <section class="desktop-main">
+              <div class="desktop-top">
+                <div>
+                  <h2>今日经营概览</h2>
+                  <p>经营端网页查看和客户小程序相同的预约、会员、员工日程数据。</p>
+                </div>
+                <div class="admin-user">
+                  <span class="status">店长</span>
+                  <strong>admin</strong>
+                </div>
+              </div>
+
+              <div class="metric-grid" aria-label="核心指标">
+                <article class="metric">
+                  <span>今日预约</span>
+                  <strong>18</strong>
+                  <small>较昨日 +12%</small>
+                </article>
+                <article class="metric">
+                  <span>待到店</span>
+                  <strong>9</strong>
+                  <small>下午集中</small>
+                </article>
+                <article class="metric">
+                  <span>会员总数</span>
+                  <strong>126</strong>
+                  <small>本周新增 8</small>
+                </article>
+                <article class="metric">
+                  <span>生日会员</span>
+                  <strong>3</strong>
+                  <small>可发送护理券</small>
+                </article>
+              </div>
+
+              <div class="admin-grid">
+                <article class="admin-card">
+                  <h3>员工日程时间轴</h3>
+                  <div class="timeline">
+                    <div class="timeline-item">
+                      <div class="time">10:00</div>
+                      <div>
+                        <strong>Ada 刘 · 深层护理</strong>
+                        <span>客户：李雷 · 手机 13900000001</span>
+                      </div>
+                      <span class="state">已确认</span>
+                    </div>
+                    <div class="timeline-item">
+                      <div class="time">14:00</div>
+                      <div>
+                        <strong>Ming 陈 · 染发咨询</strong>
+                        <span>客户：王芳 · 备注：敏感头皮</span>
+                      </div>
+                      <span class="state">待到店</span>
+                    </div>
+                    <div class="timeline-item">
+                      <div class="time">16:00</div>
+                      <div>
+                        <strong>Ada 刘 · 烫后修复</strong>
+                        <span>客户：测试客户 · 来自小程序 AI 预约</span>
+                      </div>
+                      <span class="state">AI 预约</span>
+                    </div>
+                  </div>
+                </article>
+
+                <aside class="admin-card">
+                  <h3>AI 经营建议</h3>
+                  <div class="ai-suggestion">今天护理相关咨询较多，建议在客户完成预约后自动推荐“头皮检测 + 修复护理”组合服务，并提醒 Ada 下午 16:00 的客户做发质记录。</div>
+                  <h3 style="margin-top:18px;">会员营销</h3>
+                  <div class="member-row">
+                    <div>
+                      <strong>赵敏</strong>
+                      <span>gold · 1280 积分 · 今天生日</span>
+                    </div>
+                    <button class="ghost-button">发券</button>
+                  </div>
+                  <div class="member-row">
+                    <div>
+                      <strong>陈晨</strong>
+                      <span>silver · 398 积分 · 60 天未到店</span>
+                    </div>
+                    <button class="ghost-button">唤回</button>
+                  </div>
+                </aside>
+              </div>
+            </section>
+          </div>
+        </section>
+
+        <section class="login-strip" aria-label="登录模型">
+          <article class="login-card">
+            <h3>客户登录</h3>
+            <p>手机号和姓名进入，适合小程序/H5 快速预约。后端不存在客户时自动创建客户。</p>
+            <div class="field-row">
+              <label class="field">手机号<input value="13900000001" inputmode="tel" /></label>
+              <label class="field">姓名<input value="测试客户" /></label>
+            </div>
+          </article>
+          <article class="login-card">
+            <h3>经营端登录</h3>
+            <p>店长账号密码登录，保护经营数据。第一版只做管理员角色，后面再扩展员工权限。</p>
+            <div class="field-row">
+              <label class="field">账号<input value="admin" /></label>
+              <label class="field">密码<input value="admin123" type="password" /></label>
+            </div>
+          </article>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const tabs = document.querySelectorAll(".phone-tab");
+    const screens = document.querySelectorAll(".mobile-screen");
+
+    function activateScreen(target) {
+      tabs.forEach((item) => {
+        item.classList.toggle("active", item.dataset.target === target);
+      });
+      screens.forEach((screen) => {
+        screen.classList.toggle("active", screen.dataset.screen === target);
+      });
+    }
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        activateScreen(tab.dataset.target);
+      });
+    });
+
+    document.querySelectorAll("[data-jump]").forEach((button) => {
+      button.addEventListener("click", () => {
+        activateScreen(button.dataset.jump);
+      });
+    });
+
+    document.querySelectorAll("[data-code-feedback]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const originalText = button.textContent;
+        button.textContent = button.dataset.codeFeedback;
+        button.disabled = true;
+        window.setTimeout(() => {
+          button.textContent = originalText;
+          button.disabled = false;
+        }, 1200);
+      });
+    });
+
+    window.setTimeout(() => {
+      const launchTab = document.querySelector('[data-target="launch"]');
+      if (launchTab && launchTab.classList.contains("active")) {
+        activateScreen("login");
+      }
+    }, 1800);
+  </script>
+</body>
+</html>
