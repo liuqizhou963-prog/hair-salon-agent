@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>恒艺美发 · 小程序首页</title>
+  <style>
+    :root {
+      --blue: #73b2e1;
+      --blue-deep: #4f96ce;
+      --paper: #fffaf7;
+      --card: #ffffff;
+      --ink: #201c1a;
+      --muted: #736760;
+      --line: #eadfd8;
+      --brand: #9f4e44;
+      --brand-2: #6f3029;
+      --teal: #1f746b;
+      --lime: #edff57;
+      --gold: #b9862f;
+      --nav-h: 72px;
+      color-scheme: light;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 14% 0%, rgba(115,178,225,.22), transparent 32%),
+        radial-gradient(circle at 88% 10%, rgba(237,255,87,.16), transparent 26%),
+        #f8f3ef;
+    }
+    button { border: 0; cursor: pointer; touch-action: manipulation; font: inherit; }
+    button:focus-visible { outline: 3px solid rgba(31,116,107,.24); outline-offset: 2px; }
+
+    .miniapp {
+      width: min(430px, 100%);
+      min-height: 100dvh;
+      margin: 0 auto;
+      padding-bottom: var(--nav-h);
+      background: var(--paper);
+      box-shadow: 0 0 0 1px rgba(0,0,0,.03), 0 24px 80px rgba(31,36,35,.16);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      min-height: 56px;
+      display: grid;
+      grid-template-columns: 44px 1fr 44px;
+      align-items: center;
+      padding: 8px 14px;
+      background: rgba(255,250,247,.88);
+      border-bottom: 1px solid rgba(234,223,216,.72);
+      backdrop-filter: blur(12px);
+    }
+    .topbar strong { text-align: center; font-size: 16px; }
+    .icon-btn {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      color: var(--teal);
+      background: #f2ebe6;
+    }
+    .icon-btn svg,
+    .quick-card svg,
+    .bottom-tab svg {
+      width: 21px;
+      height: 21px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .hero {
+      position: relative;
+      min-height: 560px;
+      margin: 0;
+      padding: 18px 22px 26px;
+      overflow: hidden;
+      color: white;
+      background:
+        radial-gradient(circle at 18% 20%, rgba(255,255,255,.2), transparent 24%),
+        linear-gradient(180deg, #78b7e7 0%, #67a7d8 100%);
+    }
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      position: relative;
+      z-index: 3;
+    }
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 18px;
+      font-weight: 900;
+    }
+    .brand svg {
+      width: 25px;
+      height: 25px;
+      stroke: var(--lime);
+      stroke-width: 2;
+      fill: none;
+    }
+    .menu {
+      width: 44px;
+      height: 44px;
+      display: grid;
+      place-items: center;
+      color: white;
+      background: transparent;
+      border-radius: 14px;
+    }
+    .menu svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .headline {
+      position: relative;
+      z-index: 3;
+      margin-top: 22px;
+    }
+    h1 {
+      margin: 0;
+      max-width: 330px;
+      color: white;
+      font-size: clamp(52px, 14.5vw, 68px);
+      line-height: .94;
+      letter-spacing: 0;
+      font-weight: 500;
+    }
+    .proof {
+      display: flex;
+      align-items: center;
+      margin: -30px 0 0 202px;
+      min-height: 48px;
+    }
+    .avatar {
+      width: 40px;
+      height: 40px;
+      margin-left: -9px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,.88);
+      background:
+        radial-gradient(circle at 50% 35%, #ffe0c4 0 18%, transparent 19%),
+        linear-gradient(135deg, #8d5f44, #f5c28a 48%, #475f89);
+    }
+    .avatar.alt {
+      background:
+        radial-gradient(circle at 50% 35%, #f7c6b1 0 18%, transparent 19%),
+        linear-gradient(135deg, #3f2a24, #e8a17a 46%, #f5d347);
+    }
+    .member-badge {
+      width: 50px;
+      height: 50px;
+      margin-left: -8px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #397ebd;
+      background: white;
+      font-size: 14px;
+      font-weight: 900;
+    }
+    .lead {
+      width: 260px;
+      margin: 28px 0 0 18px;
+      color: rgba(255,255,255,.78);
+      font-size: 16px;
+      line-height: 1.35;
+    }
+
+    .hero-actions {
+      position: relative;
+      z-index: 6;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 28px;
+    }
+    .primary-action,
+    .secondary-action {
+      min-height: 52px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border-radius: 16px;
+      font-size: 15px;
+      font-weight: 900;
+      transition: transform .12s ease, opacity .12s ease;
+    }
+    .primary-action {
+      color: var(--ink);
+      background: var(--lime);
+      box-shadow: 0 14px 28px rgba(54,83,32,.22);
+    }
+    .secondary-action {
+      color: white;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.38);
+      backdrop-filter: blur(8px);
+    }
+    .primary-action:active,
+    .secondary-action:active,
+    .quick-card:active,
+    .teacher-card:active { transform: scale(.98); }
+
+    .salon-scene {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 230px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    .hair-mass {
+      position: absolute;
+      left: 26px;
+      right: 24px;
+      bottom: -68px;
+      height: 210px;
+      border-radius: 56% 56% 38% 38%;
+      background:
+        radial-gradient(ellipse at 26% 20%, rgba(255,255,255,.96), transparent 32%),
+        radial-gradient(ellipse at 70% 12%, rgba(255,255,255,.72), transparent 27%),
+        repeating-linear-gradient(100deg, rgba(255,255,255,.48) 0 4px, rgba(191,206,210,.24) 5px 9px),
+        linear-gradient(145deg, #f7f8f3, #bfc7c9 55%, #f6f4ed);
+      box-shadow: inset 0 18px 44px rgba(255,255,255,.72), 0 -20px 35px rgba(69,123,154,.18);
+    }
+    .hair-mass::before,
+    .hair-mass::after {
+      content: "";
+      position: absolute;
+      inset: 34px 25px auto;
+      height: 100px;
+      border-radius: 50%;
+      border-top: 2px solid rgba(99,88,80,.18);
+      transform: rotate(-8deg);
+    }
+    .hair-mass::after {
+      inset: 52px 62px auto 46px;
+      transform: rotate(10deg);
+      border-top-color: rgba(255,255,255,.66);
+    }
+    .stylist {
+      position: absolute;
+      width: 64px;
+      height: 108px;
+      bottom: 92px;
+      z-index: 3;
+    }
+    .stylist.one { left: 78px; transform: rotate(-12deg); }
+    .stylist.two { left: 178px; bottom: 108px; }
+    .stylist.three { right: 68px; transform: rotate(12deg); }
+    .haircap {
+      width: 28px;
+      height: 14px;
+      margin: 0 auto -9px;
+      border-radius: 50% 50% 30% 30%;
+      background: #14110f;
+      position: relative;
+      z-index: 2;
+    }
+    .head {
+      width: 22px;
+      height: 22px;
+      margin: 0 auto -1px;
+      border-radius: 50%;
+      background: #efb89d;
+    }
+    .body {
+      width: 46px;
+      height: 56px;
+      margin: 0 auto;
+      border-radius: 18px 18px 10px 10px;
+      background: linear-gradient(180deg, #1d1a18, #3c3129);
+      position: relative;
+    }
+    .body::before,
+    .body::after {
+      content: "";
+      position: absolute;
+      top: 18px;
+      width: 12px;
+      height: 54px;
+      border-radius: 999px;
+      background: #1d1a18;
+      transform-origin: top center;
+    }
+    .body::before { left: -6px; transform: rotate(37deg); }
+    .body::after { right: -6px; transform: rotate(-37deg); }
+    .legs {
+      width: 42px;
+      height: 34px;
+      margin: -3px auto 0;
+      border-radius: 0 0 12px 12px;
+      background:
+        linear-gradient(90deg, transparent 0 42%, #171514 42% 58%, transparent 58%),
+        linear-gradient(90deg, #24201e 0 48%, transparent 48% 52%, #24201e 52%);
+    }
+    .tool {
+      position: absolute;
+      height: 3px;
+      width: 64px;
+      background: #111;
+      border-radius: 999px;
+      transform-origin: left center;
+    }
+    .one .tool { left: 33px; top: 58px; transform: rotate(28deg); }
+    .two .tool { left: 31px; top: 52px; transform: rotate(89deg); width: 78px; }
+    .three .tool { right: 34px; top: 58px; transform: rotate(152deg); }
+
+    .content {
+      padding: 0 16px 24px;
+      position: relative;
+      z-index: 10;
+    }
+    .quick-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: -26px;
+      position: relative;
+      z-index: 12;
+    }
+    .quick-card {
+      min-height: 78px;
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      gap: 6px;
+      padding: 10px 6px;
+      color: var(--ink);
+      background: white;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: 0 10px 28px rgba(77,51,32,.1);
+      font-size: 12px;
+      font-weight: 900;
+      transition: transform .12s ease;
+    }
+    .quick-card svg { color: var(--teal); }
+
+    .section { margin-top: 22px; }
+    .section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .section h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.25;
+    }
+    .link-btn {
+      min-height: 36px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      color: var(--teal);
+      background: #e2f1ed;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .member-card,
+    .teacher-card {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: white;
+      box-shadow: 0 8px 24px rgba(77,51,32,.08);
+    }
+    .member-card {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      overflow: hidden;
+    }
+    .metric {
+      padding: 16px;
+      border-right: 1px solid var(--line);
+    }
+    .metric:last-child { border-right: 0; }
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .metric strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 24px;
+      line-height: 1;
+      color: var(--brand);
+    }
+    .teacher-card {
+      width: 100%;
+      padding: 14px;
+      text-align: left;
+      color: var(--ink);
+    }
+    .teacher-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .teacher-avatar {
+      width: 48px;
+      height: 48px;
+      display: grid;
+      place-items: center;
+      border-radius: 16px;
+      color: white;
+      background: #5a4b87;
+      font-weight: 900;
+    }
+    .teacher-card strong { display: block; font-size: 16px; }
+    .teacher-card .meta {
+      display: block;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+    .time-pill {
+      margin-left: auto;
+      min-width: 68px;
+      min-height: 34px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      color: var(--teal);
+      background: #e2f1ed;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .slot-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 900;
+    }
+    .slot-head span:last-child {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .slot-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .slot-card {
+      min-height: 74px;
+      display: grid;
+      align-content: center;
+      justify-items: start;
+      gap: 4px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      border: 1px solid #f2d7bd;
+      color: var(--ink);
+      background: #fff2e6;
+      text-align: left;
+    }
+    .slot-card.primary {
+      border-color: #b7d7d0;
+      background: #e2f1ed;
+    }
+    .slot-card.cool {
+      border-color: #d7d3ef;
+      background: #f1efff;
+    }
+    .slot-period {
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .slot-time {
+      color: var(--ink);
+      font-size: 18px;
+      line-height: 1;
+      font-weight: 900;
+    }
+    .slot-status {
+      padding: 2px 7px;
+      border-radius: 999px;
+      color: var(--teal);
+      background: rgba(255,255,255,.76);
+      font-size: 10px;
+      font-weight: 900;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      left: 50%;
+      bottom: 0;
+      width: min(430px, 100%);
+      height: var(--nav-h);
+      transform: translateX(-50%);
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      background: rgba(255,255,255,.96);
+      border-top: 1px solid var(--line);
+      box-shadow: 0 -10px 28px rgba(77,51,32,.1);
+      z-index: 30;
+    }
+    .bottom-tab {
+      display: grid;
+      justify-items: center;
+      align-content: center;
+      gap: 4px;
+      color: #87908b;
+      background: transparent;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .bottom-tab.active { color: var(--brand); }
+
+    @media (min-width: 760px) {
+      body { padding: 24px 0; }
+      .miniapp {
+        min-height: calc(100dvh - 48px);
+        border-radius: 28px;
+      }
+      .bottom-nav { border-radius: 0 0 28px 28px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="miniapp">
+    <header class="topbar">
+      <span></span>
+      <strong>恒艺美发</strong>
+      <button class="icon-btn" aria-label="打开菜单">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10M7 12h10M7 16h10"/></svg>
+      </button>
+    </header>
+
+    <section class="hero" aria-label="恒艺美发首页视觉">
+      <div class="brand-row">
+        <div class="brand">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M5 18c3-9 11-9 14-2"/>
+            <path d="M6 17c3-4 7-5 12-4"/>
+            <path d="M9 20c2-4 4-6 8-7"/>
+          </svg>
+          <span>HengYi Salon</span>
+        </div>
+        <span class="menu" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M7 8h10M7 12h10M7 16h10"/></svg>
+        </span>
+      </div>
+
+      <div class="headline">
+        <h1>焕新<br>你的专属<br>发型</h1>
+        <div class="proof" aria-label="+2k 会员">
+          <span class="avatar"></span>
+          <span class="avatar alt"></span>
+          <span class="member-badge">+2k</span>
+        </div>
+        <p class="lead">查看常用美发老师的可约时间，管理余额、积分与订单。</p>
+      </div>
+
+      <div class="hero-actions">
+        <button class="primary-action" data-action="booking">
+          立即预约
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" fill="none"/></svg>
+        </button>
+        <button class="secondary-action" data-action="favorite">只看常用老师</button>
+      </div>
+
+      <div class="salon-scene" aria-hidden="true">
+        <div class="stylist one">
+          <div class="haircap"></div><div class="head"></div><div class="body"></div><div class="legs"></div><span class="tool"></span>
+        </div>
+        <div class="stylist two">
+          <div class="haircap"></div><div class="head"></div><div class="body"></div><div class="legs"></div><span class="tool"></span>
+        </div>
+        <div class="stylist three">
+          <div class="haircap"></div><div class="head"></div><div class="body"></div><div class="legs"></div><span class="tool"></span>
+        </div>
+        <div class="hair-mass"></div>
+      </div>
+    </section>
+
+    <main class="content">
+      <section class="quick-grid" aria-label="快捷入口">
+        <button class="quick-card" data-action="booking">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          <span>预约排档</span>
+        </button>
+        <button class="quick-card" data-action="appointments">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V3M16 7V3"/><rect x="4" y="5" width="16" height="16" rx="2"/><path d="M8 13h8M8 17h5"/></svg>
+          <span>我的预约</span>
+        </button>
+        <button class="quick-card" data-action="orders">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h10l2 4v14H5V7l2-4Z"/><path d="M7 7h10M9 12h6M9 16h4"/></svg>
+          <span>我的订单</span>
+        </button>
+        <button class="quick-card" data-action="wallet">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="15" r="1" fill="currentColor"/></svg>
+          <span>余额积分</span>
+        </button>
+      </section>
+
+      <section class="section" aria-label="会员概览">
+        <div class="section-head">
+          <h2>我的会员卡</h2>
+          <button class="link-btn" data-action="wallet">查看明细</button>
+        </div>
+        <div class="member-card">
+          <div class="metric">
+            <span>账户余额</span>
+            <strong>￥328</strong>
+          </div>
+          <div class="metric">
+            <span>可用积分</span>
+            <strong>1280</strong>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" aria-label="常用老师">
+        <div class="section-head">
+          <h2>常用老师排档</h2>
+          <button class="link-btn" data-action="booking">全部老师</button>
+        </div>
+        <div class="teacher-card">
+          <div class="teacher-top">
+            <span class="teacher-avatar">张</span>
+            <span>
+              <strong>张三 老师</strong>
+              <span class="meta">烫、染、护理 · 已设为常用老师</span>
+            </span>
+            <span class="time-pill">今天可约</span>
+          </div>
+          <div class="slot-head">
+            <span>可选时间</span>
+            <span>点时间段直接预约</span>
+          </div>
+          <div class="slot-grid">
+            <button class="slot-card" data-action="booking">
+              <span class="slot-period">上午</span>
+              <span class="slot-time">10:00</span>
+              <span class="slot-status">余 2 位</span>
+            </button>
+            <button class="slot-card primary" data-action="booking">
+              <span class="slot-period">午后</span>
+              <span class="slot-time">14:30</span>
+              <span class="slot-status">推荐</span>
+            </button>
+            <button class="slot-card cool" data-action="booking">
+              <span class="slot-period">傍晚</span>
+              <span class="slot-time">18:00</span>
+              <span class="slot-status">紧俏</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="主导航">
+      <button class="bottom-tab active" data-action="home">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg>
+        <span>首页</span>
+      </button>
+      <button class="bottom-tab" data-action="booking">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        <span>预约</span>
+      </button>
+    </nav>
+  </div>
+
+  <script>
+    const routes = {
+      booking: "/?page=booking",
+      favorite: "/?page=booking&preferred=1",
+      appointments: "/?page=mine",
+      orders: "/?page=mine",
+      wallet: "/?page=mine",
+      home: "/static/hero.html"
+    };
+
+    document.addEventListener("click", (event) => {
+      const control = event.target.closest("[data-action]");
+      if (!control) return;
+      const action = control.dataset.action;
+      if (action === "home") return;
+      if (routes[action]) window.location.href = routes[action];
+    });
+  </script>
+</body>
+</html>
