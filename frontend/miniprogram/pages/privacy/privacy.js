@@ -1,5 +1,5 @@
 Page({
-  onShow() {
+  backMine() {
     wx.switchTab({ url: "/pages/mine/mine" });
   }
 });

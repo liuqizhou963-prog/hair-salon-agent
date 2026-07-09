@@ -1,0 +1,153 @@
+.stylist-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.stylist-card {
+  width: 48%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 18rpx;
+  padding: 12rpx;
+  border: 2rpx solid #eadfd8;
+  border-radius: 32rpx;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 20rpx 48rpx rgba(77,51,32,.09);
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.stylist-card.card-left {
+  margin-right: 4%;
+}
+
+.stylist-card.card-right {
+  margin-right: 0;
+}
+
+.stylist-card.selected {
+  border-color: rgba(31,116,107,.38);
+  box-shadow: 0 28rpx 56rpx rgba(31,116,107,.14);
+}
+
+.stylist-main {
+  display: flex;
+  flex-direction: column;
+  color: #201c1a;
+  text-align: left;
+}
+
+.stylist-photo-wrap {
+  width: 100%;
+  height: 250rpx;
+  overflow: hidden;
+  border-radius: 24rpx;
+  background: #edf2f0;
+}
+
+.stylist-photo {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.stylist-body {
+  margin-top: 16rpx;
+  min-width: 0;
+}
+
+.name-row {
+  display: flex;
+  align-items: center;
+}
+
+.stylist-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 26rpx;
+  line-height: 1.25;
+  font-weight: 900;
+}
+
+.verified {
+  width: 32rpx;
+  height: 32rpx;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 10rpx;
+  border-radius: 50%;
+  color: #ffffff;
+  background: #31c95c;
+  font-size: 22rpx;
+  font-weight: 900;
+}
+
+.stylist-bio {
+  min-height: 70rpx;
+  margin-top: 10rpx;
+  display: -webkit-box;
+  overflow: hidden;
+  color: #736760;
+  font-size: 21rpx;
+  line-height: 1.5;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.stylist-foot {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12rpx;
+  min-width: 0;
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #201c1a;
+  font-size: 22rpx;
+  font-weight: 900;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.stat {
+  display: inline-block;
+}
+
+.follow-btn {
+  width: 100%;
+  min-height: 72rpx;
+  margin-top: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  color: #201c1a;
+  background: #f7f4f0;
+  box-shadow: inset 0 0 0 2rpx rgba(234,223,216,.62), 0 12rpx 26rpx rgba(77,51,32,.08);
+  font-size: 23rpx;
+  font-weight: 900;
+  line-height: 1.2;
+  text-align: center;
+}
+
+.follow-btn.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #1f746b, #124f4a);
+  box-shadow: 0 14rpx 28rpx rgba(31,116,107,.18);
+}
+
+.hero-secondary {
+  color: #ffffff;
+  background: rgba(255,255,255,.18);
+  border: 2rpx solid rgba(255,255,255,.38);
+}

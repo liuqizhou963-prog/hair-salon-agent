@@ -1,0 +1,46 @@
+.amount-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.amount-btn {
+  width: 48.6%;
+  box-sizing: border-box;
+  min-height: 132rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16rpx;
+  border: 2rpx solid #eadfd8;
+  border-radius: 24rpx;
+  color: #201c1a;
+  background: #ffffff;
+}
+
+.amount-btn.selected {
+  border-color: #1f746b;
+  background: #eaf7f4;
+}
+
+.amount-value {
+  font-size: 34rpx;
+  font-weight: 900;
+}
+
+.amount-bonus {
+  display: block;
+  margin-top: 8rpx;
+  color: #736760;
+  font-size: 22rpx;
+  font-weight: 800;
+}
+
+.center-input {
+  text-align: center;
+}
+
+.compact {
+  margin-bottom: 0;
+}

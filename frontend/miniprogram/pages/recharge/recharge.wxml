@@ -1,0 +1,44 @@
+<view class="page">
+  <view class="hero-band">
+    <view class="hero-brand">
+      <view class="hair-logo"></view>
+      <text>HengYi Salon</text>
+    </view>
+    <text class="hero-title">会员
+充值</text>
+    <text class="hero-copy">充值后可用于到店消费，余额和积分会同步显示在会员卡中。</text>
+  </view>
+
+  <view class="grid">
+    <view class="metric-card">
+      <view class="metric-cell">
+        <text>当前余额</text>
+        <text class="metric-value">￥{{user.balance}}</text>
+      </view>
+      <view class="metric-cell">
+        <text>当前等级</text>
+        <text class="metric-value small">{{user.level}}</text>
+      </view>
+    </view>
+
+    <view class="card form-card">
+      <view class="section-head compact">
+        <text class="section-title">选择充值金额</text>
+      </view>
+      <view class="amount-grid">
+        <button
+          wx:for="{{amounts}}"
+          wx:key="value"
+          class="{{item.className}}"
+          data-value="{{item.value}}"
+          bindtap="selectAmount"
+        >
+          <text class="amount-value">￥{{item.value}}</text>
+          <text class="amount-bonus">{{item.bonusText}}</text>
+        </button>
+      </view>
+      <input class="text-input center-input" type="number" min="1" placeholder="自定义金额" bindinput="onCustomInput" />
+      <button class="primary-btn" bindtap="submitRecharge">确认充值 ￥{{selectedAmount}}</button>
+    </view>
+  </view>
+</view>

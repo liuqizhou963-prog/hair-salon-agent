@@ -1,0 +1,93 @@
+<view class="page mine-page">
+  <view class="wallet-hero">
+    <view class="hero-brand">
+      <view class="hair-logo"></view>
+      <text>HengYi Salon</text>
+    </view>
+    <text class="wallet-label">账户余额</text>
+    <text class="wallet-balance">￥{{balanceText}}</text>
+    <view class="wallet-sub">
+      <text>{{user.name}}</text>
+      <text class="pill gold">{{user.level}} 会员</text>
+      <text>{{user.points}} 积分</text>
+    </view>
+  </view>
+
+  <view class="wallet-actions">
+    <button class="wallet-action-btn" bindtap="goRecharge">
+      <text class="action-mark">充</text>
+      <text>充值</text>
+    </button>
+    <button class="wallet-action-btn" bindtap="scrollAppointments">
+      <text class="action-mark">约</text>
+      <text>我的预约</text>
+    </button>
+    <button class="wallet-action-btn" bindtap="goHistory">
+      <text class="action-mark">历</text>
+      <text>到店记录</text>
+    </button>
+    <button class="wallet-action-btn" bindtap="goPoints">
+      <text class="action-mark">积</text>
+      <text>我的积分</text>
+    </button>
+  </view>
+
+  <view class="metric-card">
+    <button class="metric-cell clickable" bindtap="goRefund">
+      <text>可用余额</text>
+      <text class="metric-value">￥{{user.balance}}</text>
+    </button>
+    <view class="metric-cell">
+      <text>可用积分</text>
+      <text class="metric-value">{{user.points}}</text>
+    </view>
+  </view>
+
+  <view id="appointment-section" class="section">
+    <view class="section-head">
+      <text class="section-title">我的预约</text>
+      <button wx:if="{{showBookingShortcut}}" class="link-btn" bindtap="goBooking">去预约</button>
+    </view>
+    <view wx:if="{{hasAppointments}}" class="appointment-list">
+      <view wx:for="{{appointments}}" wx:key="appointment_id" class="appointment-card">
+        <image class="appointment-avatar" src="{{item.photo}}" mode="aspectFill" />
+        <view class="appointment-info">
+          <text class="appointment-title">{{item.stylist_name}} · {{item.service}}</text>
+          <text class="appointment-time">{{item.time_text}}</text>
+        </view>
+        <text class="pill">已预约</text>
+      </view>
+    </view>
+    <view wx:if="{{showEmptyAppointments}}" class="card empty-card">
+      <text class="empty-icon">约</text>
+      <text>还没有预约记录</text>
+      <text class="muted">选择熟悉的美发老师，看他的可约时间。</text>
+      <button class="secondary-btn" bindtap="goBooking">查看老师排档</button>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="card line-card">
+      <view class="line-item" bindtap="goProfile">
+        <view>
+          <text class="line-title">个人资料</text>
+          <text class="line-meta">姓名、手机号、生日</text>
+        </view>
+        <text class="chevron">›</text>
+      </view>
+      <view class="line-item" bindtap="goPush">
+        <view>
+          <text class="line-title">推送通知</text>
+          <text class="line-meta">预约提醒、生日活动</text>
+        </view>
+        <text class="chevron">›</text>
+      </view>
+      <view class="line-item" bindtap="goPrivacy">
+        <view>
+          <text class="line-title">隐私政策</text>
+        </view>
+        <text class="chevron">›</text>
+      </view>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,26 @@
+.success-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40rpx 32rpx;
+  text-align: center;
+}
+
+.success-card > text,
+.success-card > button {
+  margin-top: 18rpx;
+}
+
+.success-card > text:first-child {
+  margin-top: 0;
+}
+
+.success-title {
+  font-size: 44rpx;
+  font-weight: 900;
+}
+
+.pill.dark {
+  color: #ffffff;
+  background: #1f746b;
+}

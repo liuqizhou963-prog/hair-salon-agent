@@ -1,0 +1,26 @@
+<view class="page">
+  <view class="hero-band">
+    <view class="hero-brand">
+      <view class="hair-logo"></view>
+      <text>HengYi Salon</text>
+    </view>
+    <text class="hero-title">到店
+记录</text>
+    <text class="hero-copy">查看每一次服务记录、老师和消费金额，方便下次继续预约熟悉的老师。</text>
+  </view>
+
+  <view class="section no-top">
+    <view class="section-head">
+      <text class="section-title">到店记录</text>
+    </view>
+    <view class="visit-list">
+      <view wx:for="{{visits}}" wx:key="date" class="card visit-card">
+        <view>
+          <text class="visit-service">{{item.service}}</text>
+          <text class="line-meta">{{item.stylist}} 老师 · {{item.date}}</text>
+        </view>
+        <text class="visit-price">￥{{item.amount}}</text>
+      </view>
+    </view>
+  </view>
+</view>

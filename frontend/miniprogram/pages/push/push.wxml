@@ -1,0 +1,26 @@
+<view class="page">
+  <view class="hero-band">
+    <view class="hero-brand">
+      <view class="hair-logo"></view>
+      <text>HengYi Salon</text>
+    </view>
+    <text class="hero-title">推送
+通知</text>
+    <text class="hero-copy">开启预约提醒、积分变动和生日活动，不错过常用老师的可约时间。</text>
+  </view>
+
+  <view class="card line-card">
+    <view class="line-item">
+      <text class="line-title">复购提醒</text>
+      <switch checked="{{notifications.revisit}}" data-key="revisit" bindchange="toggle" color="#1f746b" />
+    </view>
+    <view class="line-item">
+      <text class="line-title">生日活动</text>
+      <switch checked="{{notifications.birthday}}" data-key="birthday" bindchange="toggle" color="#1f746b" />
+    </view>
+    <view class="line-item">
+      <text class="line-title">积分变动</text>
+      <switch checked="{{notifications.points}}" data-key="points" bindchange="toggle" color="#1f746b" />
+    </view>
+  </view>
+</view>

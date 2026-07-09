@@ -1,0 +1,18 @@
+<view class="page">
+  <view class="hero-band">
+    <view class="hero-brand">
+      <view class="hair-logo"></view>
+      <text>HengYi Salon</text>
+    </view>
+    <text class="hero-title">操作
+完成</text>
+    <text class="hero-copy">￥{{amount}}.00 已到账</text>
+  </view>
+
+  <view class="card success-card">
+    <text class="pill dark">已完成</text>
+    <text class="success-title">充值成功</text>
+    <text class="muted">￥{{amount}}.00 已到账</text>
+    <button class="primary-btn" bindtap="finish">完成</button>
+  </view>
+</view>

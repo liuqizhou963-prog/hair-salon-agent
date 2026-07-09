@@ -1,0 +1,17 @@
+<view class="page">
+  <view class="hero-band">
+    <view class="hero-brand">
+      <view class="hair-logo"></view>
+      <text>HengYi Salon</text>
+    </view>
+    <text class="hero-title">隐私
+政策</text>
+    <text class="hero-copy">客户资料只用于预约、订单、会员权益和门店服务，不展示给无关人员。</text>
+  </view>
+
+  <view class="card form-card">
+    <text class="privacy-title">隐私政策</text>
+    <text class="muted">我们仅在提供服务时使用你的手机号、姓名和消费记录，不会向第三方出售。</text>
+    <button class="secondary-btn" bindtap="backMine">返回</button>
+  </view>
+</view>

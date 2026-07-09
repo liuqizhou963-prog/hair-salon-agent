@@ -1,0 +1,40 @@
+{
+  "pages": [
+    "pages/mine/mine",
+    "pages/booking/booking",
+    "pages/teacher-schedule/teacher-schedule",
+    "pages/refund/refund",
+    "pages/recharge/recharge",
+    "pages/recharge-ok/recharge-ok",
+    "pages/points/points",
+    "pages/history/history",
+    "pages/profile/profile",
+    "pages/push/push",
+    "pages/privacy/privacy",
+    "pages/home/home"
+  ],
+  "window": {
+    "navigationBarTitleText": "恒艺美发",
+    "navigationBarBackgroundColor": "#fffaf7",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#fffaf7"
+  },
+  "tabBar": {
+    "color": "#87908b",
+    "selectedColor": "#4f96ce",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/booking/booking",
+        "text": "预约"
+      },
+      {
+        "pagePath": "pages/mine/mine",
+        "text": "我的"
+      }
+    ]
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

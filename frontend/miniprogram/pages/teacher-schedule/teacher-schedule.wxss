@@ -1,0 +1,132 @@
+.teacher-card {
+  display: flex;
+  align-items: center;
+  padding: 24rpx;
+  overflow: hidden;
+}
+
+.teacher-avatar {
+  width: 108rpx;
+  height: 108rpx;
+  border-radius: 30rpx;
+  background: #edf2f0;
+}
+
+.teacher-main {
+  flex: 1;
+  min-width: 0;
+  margin-left: 22rpx;
+}
+
+.teacher-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 30rpx;
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+.teacher-card .pill {
+  flex: 0 0 auto;
+  margin-left: 18rpx;
+}
+
+.pill.dark {
+  color: #ffffff;
+  background: #1f746b;
+}
+
+.slot-day {
+  margin-top: 28rpx;
+}
+
+.slot-day-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14rpx;
+  font-size: 28rpx;
+  line-height: 1.3;
+  font-weight: 900;
+}
+
+.slot-day-head text:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.slot-day-head .muted {
+  flex: 0 0 auto;
+  margin-left: 20rpx;
+}
+
+.slot-grid {
+  overflow: hidden;
+}
+
+.slot-card {
+  width: 48%;
+  box-sizing: border-box;
+  min-height: 184rpx;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  float: left;
+  margin-bottom: 16rpx;
+  padding: 22rpx;
+  border-radius: 32rpx;
+  border: 2rpx solid #f2d7bd;
+  color: #201c1a;
+  background: #fff8f0;
+  text-align: left;
+  overflow: hidden;
+}
+
+.slot-left {
+  margin-right: 4%;
+}
+
+.slot-right {
+  margin-right: 0;
+}
+
+.slot-card.afternoon {
+  border-color: #b7d7d0;
+  background: #eaf7f4;
+}
+
+.slot-card.evening {
+  border-color: #d7d3ef;
+  background: #f1efff;
+}
+
+.slot-period {
+  color: #736760;
+  font-size: 24rpx;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.slot-time {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 42rpx;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.slot-note {
+  display: block;
+  margin-top: 8rpx;
+  min-height: 38rpx;
+  padding: 0 12rpx;
+  border-radius: 999rpx;
+  color: #1f746b;
+  background: rgba(255,255,255,.72);
+  font-size: 22rpx;
+  font-weight: 900;
+  line-height: 38rpx;
+}

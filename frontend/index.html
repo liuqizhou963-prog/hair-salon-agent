@@ -1040,14 +1040,14 @@ function teacherSchedulePage() {
   const stylist = state.stylists.find(s => s.stylist_id === state.selectedStylistId);
   if (!stylist) {
     return `
-      ${miniHero("老师<br>排档", "先选择一位常用老师，再查看他的可约时间。")}
+      ${miniHero("老师排档", "先选择一位常用老师，再查看他的可约时间。")}
       <div class="card pad grid">
         <strong>还没有选择老师</strong>
         <button class="btn secondary" data-go="booking">返回选择老师</button>
       </div>`;
   }
   return `
-    ${miniHero("老师<br>排档", `${stylist.displayName} · ${stylist.specialty}`)}
+    ${miniHero("老师排档", `${stylist.displayName} · ${stylist.specialty}`)}
     <section class="section" style="margin-top:0">
       <div class="appointment-mini-card">
         <span class="appointment-avatar">

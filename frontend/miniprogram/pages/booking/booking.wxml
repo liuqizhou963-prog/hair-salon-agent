@@ -1,0 +1,57 @@
+<view class="page">
+  <view class="hero-band">
+    <view class="hero-brand">
+      <view class="hair-logo"></view>
+      <text>HengYi Salon</text>
+    </view>
+    <text class="hero-title">预约
+发型师</text>
+    <text class="hero-copy">选择常用老师后，可以只看他的排档，快速找到熟悉的剪发时间。</text>
+    <view class="hero-actions">
+      <button class="primary-btn" disabled="{{disablePreferredToggle}}" bindtap="togglePreferredOnly">
+        {{toggleText}}
+      </button>
+      <button class="secondary-btn hero-secondary" bindtap="goMine">我的预约</button>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">选择美发老师</text>
+      <text class="muted">{{sectionLabel}}</text>
+    </view>
+    <view wx:if="{{hasDisplayStylists}}" class="stylist-grid">
+      <view
+        wx:for="{{displayStylists}}"
+        wx:key="stylist_id"
+        class="{{item.cardClass}}"
+      >
+        <button class="stylist-main" data-id="{{item.stylist_id}}" bindtap="openSchedule">
+          <view class="stylist-photo-wrap">
+            <image class="stylist-photo" src="{{item.photo}}" mode="aspectFill" />
+          </view>
+          <view class="stylist-body">
+            <view class="name-row">
+              <text class="stylist-name">{{item.displayName}}</text>
+              <text class="verified">✓</text>
+            </view>
+            <text class="stylist-bio">{{item.bio}}</text>
+          </view>
+        </button>
+        <view class="stylist-foot">
+          <view class="stats">
+            <text class="stat">约 {{item.bookings}}</text>
+            <text class="stat">作 {{item.works}}</text>
+          </view>
+          <button class="{{item.followClass}}" data-id="{{item.stylist_id}}" bindtap="preferStylist">
+            {{item.followText}}
+          </button>
+        </view>
+      </view>
+    </view>
+    <view wx:if="{{showEmptyStylists}}" class="card empty-card">
+      <text class="empty-icon">师</text>
+      <text>暂时没有可预约老师</text>
+    </view>
+  </view>
+</view>

@@ -1,0 +1,60 @@
+<view class="page">
+  <view class="hero-band">
+    <view class="hero-brand">
+      <view class="hair-logo"></view>
+      <text>HengYi Salon</text>
+    </view>
+    <text class="hero-title">老师排档</text>
+    <text class="hero-copy">{{heroCopy}}</text>
+  </view>
+
+  <block wx:if="{{hasStylist}}">
+    <view class="teacher-card card">
+      <image class="teacher-avatar" src="{{stylist.photo}}" mode="aspectFill" />
+      <view class="teacher-main">
+        <text class="teacher-name">{{stylist.displayName}}</text>
+        <text class="muted">{{stylist.experience_years}} 年经验 · {{stylist.rating}} 分</text>
+      </view>
+      <text class="pill dark">常用老师</text>
+    </view>
+
+    <view class="section">
+      <view class="section-head">
+        <text class="section-title">可约时间</text>
+      </view>
+      <view wx:if="{{hasGroupedSlots}}">
+        <view wx:for="{{groupedSlots}}" wx:key="date" class="slot-day">
+          <view class="slot-day-head">
+            <text>{{item.dateText}}</text>
+            <text class="muted">{{item.slotCountText}}</text>
+          </view>
+          <view class="slot-grid">
+            <button
+              wx:for="{{item.slots}}"
+              wx:for-item="slot"
+              wx:key="slot_id"
+              class="{{slot.cardClass}}"
+              data-id="{{slot.slot_id}}"
+              bindtap="bookSlot"
+            >
+              <text class="slot-period">{{slot.period}}</text>
+              <text class="slot-time">{{slot.time}}</text>
+              <text class="slot-note">可预约</text>
+            </button>
+          </view>
+        </view>
+      </view>
+      <view wx:if="{{showEmptySlots}}" class="card empty-card">
+        <text class="empty-icon">时</text>
+        <text>这位老师近期暂无可约时间</text>
+      </view>
+    </view>
+  </block>
+
+  <view wx:if="{{showNoStylist}}" class="card empty-card">
+    <text class="empty-icon">排</text>
+    <text>还没有选择老师</text>
+    <text class="muted">先选择一位常用老师，再查看他的可约时间。</text>
+    <button class="secondary-btn" bindtap="goBooking">返回选择老师</button>
+  </view>
+</view>

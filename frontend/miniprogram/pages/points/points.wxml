@@ -1,0 +1,54 @@
+<view class="page">
+  <view class="hero-band">
+    <view class="hero-brand">
+      <view class="hair-logo"></view>
+      <text>HengYi Salon</text>
+    </view>
+    <text class="hero-title">我的
+积分</text>
+    <text class="hero-copy">当前可用 {{user.points}} 积分，每次到店消费都会自动累计。</text>
+  </view>
+
+  <view class="metric-card">
+    <view class="metric-cell">
+      <text>当前积分</text>
+      <text class="metric-value">{{user.points}}</text>
+    </view>
+    <view class="metric-cell">
+      <text>可抵扣</text>
+      <text class="metric-value">￥64</text>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">积分规则</text>
+    </view>
+    <view class="card line-card">
+      <view class="line-item">
+        <view><text class="line-title">消费积分</text><text class="line-meta">每消费 ￥1 积 1 分</text></view>
+      </view>
+      <view class="line-item">
+        <view><text class="line-title">积分抵扣</text><text class="line-meta">100 积分抵扣 ￥5</text></view>
+      </view>
+      <view class="line-item">
+        <view><text class="line-title">生日双倍</text><text class="line-meta">生日当月积分翻倍</text></view>
+      </view>
+      <view class="line-item">
+        <view><text class="line-title">有效期</text><text class="line-meta">积分永久有效，不过期</text></view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <text class="section-title">积分记录</text>
+    </view>
+    <view class="card line-card">
+      <view wx:for="{{records}}" wx:key="desc" class="line-item">
+        <view><text class="line-title">{{item.value}}</text><text class="line-meta">{{item.desc}}</text></view>
+        <text class="line-meta">{{item.date}}</text>
+      </view>
+    </view>
+  </view>
+</view>

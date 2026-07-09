@@ -1,0 +1,36 @@
+.no-top {
+  margin-top: 0;
+}
+
+.visit-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.visit-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20rpx;
+  padding: 30rpx;
+}
+
+.visit-card view {
+  flex: 1;
+  min-width: 0;
+}
+
+.visit-service {
+  display: block;
+  font-size: 30rpx;
+  line-height: 1.35;
+  font-weight: 900;
+}
+
+.visit-price {
+  flex: 0 0 auto;
+  margin-left: 24rpx;
+  color: #4f96ce;
+  font-size: 32rpx;
+  font-weight: 900;
+}
