@@ -22,8 +22,15 @@ Page({
     showEmptySlots: false
   },
 
-  onLoad(options) {
+  async onLoad(options) {
     const app = getApp();
+    if (!app.ensureAuthenticated()) return;
+    try {
+      if (!app.globalData.stylists.length) await app.loadStylists();
+    } catch (error) {
+      this.setData({ heroCopy: error.message || "老师加载失败" });
+      return;
+    }
     const id = options.id || app.globalData.selectedStylistId;
     app.globalData.selectedStylistId = id;
     const stylist = app.globalData.stylists.find(item => item.stylist_id === id);
@@ -39,7 +46,14 @@ Page({
       });
       return;
     }
-    const slots = app.globalData.slotsByStylist[id] || [];
+    let slots = app.globalData.slotsByStylist[id] || [];
+    if (!slots.length) {
+      try {
+        slots = await app.loadSlots(id);
+      } catch (error) {
+        slots = [];
+      }
+    }
     const groups = slots.reduce((acc, slot) => {
       const period = slotPeriod(slot.time);
       const group = acc.find(item => item.date === slot.date);
@@ -88,24 +102,27 @@ Page({
     wx.switchTab({ url: "/pages/booking/booking" });
   },
 
-  bookSlot(event) {
+  async bookSlot(event) {
     const app = getApp();
     const slotId = event.currentTarget.dataset.id;
     const slot = (app.globalData.slotsByStylist[this.data.stylist.stylist_id] || [])
       .find(item => item.slot_id === slotId);
     if (!slot) return;
-    app.globalData.appointments.unshift({
-      appointment_id: `${slotId}-${Date.now()}`,
-      stylist_id: this.data.stylist.stylist_id,
-      stylist_name: this.data.stylist.displayName,
-      service: "洗剪吹",
-      photo: this.data.stylist.photo,
-      time_text: `${formatDate(slot.date)} ${slot.time}`,
-      status: "confirmed"
-    });
-    wx.showToast({ title: "预约成功", icon: "success" });
-    setTimeout(() => {
-      wx.switchTab({ url: "/pages/mine/mine" });
-    }, 500);
+    try {
+      await app.request("/api/appointments", {
+        method: "POST",
+        data: {
+          stylist_id: this.data.stylist.stylist_id,
+          slot_id: slotId,
+          service: "洗剪吹",
+          notes: "客户从小程序预约"
+        }
+      });
+      await app.loadAppointments();
+      wx.showToast({ title: "预约成功", icon: "success" });
+      setTimeout(() => wx.switchTab({ url: "/pages/mine/mine" }), 500);
+    } catch (error) {
+      wx.showToast({ title: error.message || "预约失败", icon: "none" });
+    }
   }
 });

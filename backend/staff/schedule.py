@@ -1,13 +1,11 @@
-"""员\u5de5\u65e5\u7a0b\u7ba1\u7406"""
+﻿"""员\u5de5\u65e5\u7a0b\u7ba1\u7406"""
 
 from loguru import logger
 from typing import List, Dict, Any, Optional
-from datetime import datetime, timedelta
-import uuid
+from datetime import datetime
 
-from src.database.connection import SessionLocal
-from src.database.service import AppointmentService, StylistService
-from src.database.models import Appointment
+from backend.database.connection import SessionLocal
+from backend.database.service import AppointmentService, StylistService
 
 class StaffScheduleService:
     """\u5458\u5de5\u65e5\u7a0b\u670d\u52a1"""
@@ -31,6 +29,7 @@ class StaffScheduleService:
                     "appointment_id": str(apt.id),
                     "customer_name": apt.customer.name,
                     "customer_phone": apt.customer.phone,
+                    "stylist_name": apt.stylist.user.name,
                     "service": apt.service,
                     "appointment_datetime": apt.appointment_datetime.isoformat(),
                     "status": apt.status.value,
@@ -63,10 +62,13 @@ class StaffScheduleService:
                 
                 schedule[stylist.user.name] = [
                     {
+                        "appointment_id": str(apt.id),
                         "customer_name": apt.customer.name,
+                        "customer_phone": apt.customer.phone,
                         "service": apt.service,
                         "appointment_datetime": apt.appointment_datetime.isoformat(),
-                        "status": apt.status.value
+                        "status": apt.status.value,
+                        "notes": apt.notes,
                     }
                     for apt in appointments
                 ]

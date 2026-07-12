@@ -55,7 +55,10 @@
           <text class="appointment-title">{{item.stylist_name}} · {{item.service}}</text>
           <text class="appointment-time">{{item.time_text}}</text>
         </view>
-        <text class="pill">已预约</text>
+        <view class="appointment-actions">
+          <text class="pill">{{item.status === 'cancelled' ? '已取消' : item.status === 'completed' ? '已完成' : '已预约'}}</text>
+          <button wx:if="{{item.status !== 'cancelled' && item.status !== 'completed'}}" class="link-btn cancel-btn" catchtap="cancelAppointment" data-id="{{item.appointment_id}}">取消</button>
+        </view>
       </view>
     </view>
     <view wx:if="{{showEmptyAppointments}}" class="card empty-card">

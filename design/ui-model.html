@@ -369,6 +369,314 @@
       padding: 14px;
     }
 
+    .customer-home {
+      min-height: 655px;
+      margin: -18px;
+      padding-bottom: 12px;
+      background: #fff;
+    }
+
+    .home-top {
+      padding: 22px 18px 24px;
+      color: white;
+      background: #0f1016;
+    }
+
+    .home-greeting {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 48px;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .home-greeting h2 {
+      margin: 0 0 7px;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+
+    .home-greeting p {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.88);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .bell-button {
+      width: 46px;
+      height: 46px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 50%;
+      color: white;
+      background: #22232d;
+    }
+
+    .home-icon {
+      width: 20px;
+      height: 20px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .search-wrap {
+      min-height: 52px;
+      display: grid;
+      grid-template-columns: 28px minmax(0, 1fr) 1px 34px;
+      gap: 10px;
+      align-items: center;
+      padding: 0 14px;
+      border: 1px solid #2a2b35;
+      border-radius: 16px;
+      color: #8f95a3;
+      background: #1c1d26;
+    }
+
+    .search-wrap input {
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      color: white;
+      background: transparent;
+    }
+
+    .search-wrap input::placeholder {
+      color: #8f95a3;
+    }
+
+    .search-divider {
+      height: 26px;
+      background: #32333e;
+    }
+
+    .home-body {
+      padding: 24px 18px 0;
+    }
+
+    .promo-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 172px;
+      padding: 26px 24px;
+      border-radius: 16px;
+      color: #111318;
+      background:
+        radial-gradient(circle at 12% 82%, rgba(255, 255, 255, 0.28), transparent 35%),
+        repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px 8px),
+        #ffb900;
+    }
+
+    .promo-card h3 {
+      margin: 7px 0 22px;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .promo-card p {
+      margin: 0;
+      font-size: 13px;
+      line-height: 1.6;
+      font-weight: 900;
+    }
+
+    .discount {
+      position: absolute;
+      top: 30px;
+      right: 26px;
+      font-size: 38px;
+      line-height: 1;
+      font-weight: 800;
+    }
+
+    .promo-dots {
+      position: absolute;
+      left: 50%;
+      bottom: 12px;
+      display: flex;
+      gap: 5px;
+      transform: translateX(-50%);
+    }
+
+    .promo-dots span {
+      width: 4px;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(17, 19, 24, 0.34);
+    }
+
+    .promo-dots span:first-child {
+      width: 20px;
+      background: #111318;
+    }
+
+    .service-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 14px 0 34px;
+    }
+
+    .service-button {
+      display: grid;
+      justify-items: center;
+      gap: 9px;
+      min-height: 82px;
+      color: #1f2423;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .service-icon {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #ffb300;
+      background: #fff6e2;
+    }
+
+    .home-section-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .home-section-head h3 {
+      margin: 0;
+      font-size: 20px;
+    }
+
+    .home-section-head button {
+      color: #ffb300;
+      background: transparent;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .booking-card {
+      display: grid;
+      gap: 12px;
+      padding: 14px;
+      border: 1px solid #eff1f5;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 8px 26px rgba(15, 16, 22, 0.06);
+    }
+
+    .booking-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: #20242b;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .remind {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: #99a1ad;
+    }
+
+    .toggle {
+      width: 34px;
+      height: 20px;
+      padding: 3px;
+      border-radius: 999px;
+      background: #ffb300;
+    }
+
+    .toggle::after {
+      content: "";
+      display: block;
+      width: 14px;
+      height: 14px;
+      margin-left: auto;
+      border-radius: 50%;
+      background: white;
+    }
+
+    .booking-main {
+      display: grid;
+      grid-template-columns: 78px minmax(0, 1fr);
+      gap: 13px;
+      align-items: center;
+      padding-top: 10px;
+      border-top: 1px solid #f0f2f5;
+    }
+
+    .booking-image {
+      width: 78px;
+      height: 58px;
+      border-radius: 10px;
+      background:
+        linear-gradient(145deg, rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.58)),
+        linear-gradient(135deg, #d9c3a2, #20242b);
+    }
+
+    .booking-main h4 {
+      margin: 0 0 5px;
+      font-size: 15px;
+      line-height: 1.2;
+    }
+
+    .booking-main p {
+      margin: 0;
+      color: #6b7280;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .home-app-tabs {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      align-items: end;
+      gap: 4px;
+      margin: 14px -6px 0;
+      padding-top: 8px;
+      border-top: 1px solid #f0f2f5;
+    }
+
+    .home-tab {
+      min-height: 54px;
+      display: grid;
+      place-items: center;
+      gap: 4px;
+      color: #9aa3b2;
+      background: transparent;
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .home-tab.active {
+      color: #ffb300;
+    }
+
+    .home-tab.primary {
+      width: 54px;
+      height: 54px;
+      min-height: 54px;
+      justify-self: center;
+      border-radius: 50%;
+      color: white;
+      background: #0f1016;
+      transform: translateY(-10px);
+    }
+
+    .home-tab.primary span {
+      display: none;
+    }
+
     .stylist-head {
       display: flex;
       gap: 12px;
@@ -460,7 +768,7 @@
 
     .phone-tabs {
       display: grid;
-      grid-template-columns: repeat(11, 1fr);
+      grid-template-columns: repeat(12, 1fr);
       gap: 4px;
       padding: 8px 10px 12px;
       border-top: 1px solid var(--line);
@@ -1582,8 +1890,145 @@
                     <label class="field">生日<input value="07-08" inputmode="numeric" placeholder="MM-DD" /></label>
                     <label class="field">电子邮箱，可选<input value="" inputmode="email" placeholder="用于接收生日礼券或活动提醒" /></label>
                   </div>
-                  <button class="primary-button" style="width:100%;" data-jump="ai">完成</button>
+                  <button class="primary-button" style="width:100%;" data-jump="home">完成</button>
                   <p class="helper-copy">生日是必要业务信息；邮箱先不强制，后期做邮件营销时再打开。</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="mobile-screen" data-screen="home">
+              <div class="customer-home">
+                <div class="home-top">
+                  <div class="home-greeting">
+                    <div>
+                      <h2>嗨，小美</h2>
+                      <p>美发本家 · XX省XX市</p>
+                    </div>
+                    <button class="bell-button" aria-label="消息通知">
+                      <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
+                        <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <div class="search-wrap">
+                    <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="11" cy="11" r="7" />
+                      <path d="m20 20-3.5-3.5" />
+                    </svg>
+                    <input aria-label="搜索" placeholder="搜索" />
+                    <span class="search-divider"></span>
+                    <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <path d="M4 7h10" />
+                      <path d="M18 7h2" />
+                      <path d="M4 17h2" />
+                      <path d="M10 17h10" />
+                      <circle cx="16" cy="7" r="2" />
+                      <circle cx="8" cy="17" r="2" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div class="home-body">
+                  <div class="promo-card">
+                    <span style="font-size:13px;font-weight:800;">50折优惠</span>
+                    <h3>今天的特别优惠</h3>
+                    <p>每个服务订单均可享受折扣！<br />仅当日有效！</p>
+                    <strong class="discount">30%</strong>
+                    <div class="promo-dots"><span></span><span></span><span></span></div>
+                  </div>
+
+                  <div class="service-grid">
+                    <button class="service-button" data-jump="stylists">
+                      <span class="service-icon">
+                        <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="m4 18 7-7" />
+                          <path d="m4 6 7 7" />
+                          <circle cx="4" cy="6" r="2" />
+                          <circle cx="4" cy="18" r="2" />
+                          <path d="M13 5h7" />
+                        </svg>
+                      </span>
+                      <span>理发</span>
+                    </button>
+                    <button class="service-button" data-jump="stylists">
+                      <span class="service-icon">
+                        <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M7 4v13" />
+                          <path d="M11 4v13" />
+                          <path d="M5 17h8" />
+                          <path d="M16 7h3v10h-3z" />
+                          <path d="M15 17h5" />
+                        </svg>
+                      </span>
+                      <span>染色</span>
+                    </button>
+                    <button class="service-button" data-jump="stylists">
+                      <span class="service-icon">
+                        <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M6 14c4-8 10-8 12-3" />
+                          <path d="M14 14c2 0 4 2 4 4" />
+                          <path d="M5 19h6" />
+                          <path d="M7 17v4" />
+                        </svg>
+                      </span>
+                      <span>洗发</span>
+                    </button>
+                    <button class="service-button" data-jump="ai">
+                      <span class="service-icon">
+                        <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M12 3v18" />
+                          <path d="M3 12h18" />
+                          <path d="M5 5c4 0 4 14 0 14" />
+                          <path d="M19 5c-4 0-4 14 0 14" />
+                        </svg>
+                      </span>
+                      <span>更多</span>
+                    </button>
+                  </div>
+
+                  <div class="home-section-head">
+                    <h3>待使用</h3>
+                    <button data-jump="orders">查看全部</button>
+                  </div>
+
+                  <article class="booking-card">
+                    <div class="booking-top">
+                      <span>2026 年 07 月 08 日 · 16:00 AM</span>
+                      <span class="remind">提醒我 <span class="toggle"></span></span>
+                    </div>
+                    <div class="booking-main">
+                      <div class="booking-image" aria-label="理发店服务图片"></div>
+                      <div>
+                        <h4>理发店美发服务</h4>
+                        <p>美发本家地址详情描述信息示例。</p>
+                      </div>
+                    </div>
+                  </article>
+
+                  <nav class="home-app-tabs" aria-label="首页业务导航">
+                    <button class="home-tab active" data-jump="home">
+                      <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7" /><path d="M5 10v10h14V10" /></svg>
+                      <span>首页</span>
+                    </button>
+                    <button class="home-tab" data-jump="stylists">
+                      <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5l7 4 9-4v14l-9 4z" /><path d="M11 9v14" /></svg>
+                      <span>探索</span>
+                    </button>
+                    <button class="home-tab primary" data-jump="ai">
+                      <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 18 7-7" /><path d="m4 6 7 7" /><circle cx="4" cy="6" r="2" /><circle cx="4" cy="18" r="2" /></svg>
+                      <span>AI</span>
+                    </button>
+                    <button class="home-tab" data-jump="orders">
+                      <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5z" /><path d="M8 8h8" /><path d="M8 12h8" /></svg>
+                      <span>信息</span>
+                    </button>
+                    <button class="home-tab" data-jump="mine">
+                      <svg class="home-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 14.5-4 16 0" /></svg>
+                      <span>我的</span>
+                    </button>
+                  </nav>
                 </div>
               </div>
             </section>
@@ -1731,6 +2176,7 @@
             <button class="phone-tab" data-target="forgot">找回</button>
             <button class="phone-tab" data-target="register">注册</button>
             <button class="phone-tab" data-target="profile">资料</button>
+            <button class="phone-tab" data-target="home">首页</button>
             <button class="phone-tab" data-target="ai">AI</button>
             <button class="phone-tab" data-target="stylists">发型师</button>
             <button class="phone-tab" data-target="orders">预约</button>

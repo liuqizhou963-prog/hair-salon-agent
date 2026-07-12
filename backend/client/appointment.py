@@ -1,12 +1,12 @@
-"""客户预约管理\u670d\u52a1\uff08\u5df2与 PostgreSQL 集成\uff09"""
+﻿"""客户预约管理\u670d\u52a1\uff08\u5df2与 PostgreSQL 集成\uff09"""
 
 from loguru import logger
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import uuid
 
-from src.database.connection import SessionLocal
-from src.database.service import (
+from backend.database.connection import SessionLocal
+from backend.database.service import (
     UserService, StylistService, TimeSlotService, 
     AppointmentService, MemberService
 )
@@ -82,7 +82,7 @@ class ClientAppointmentService:
             logger.info(f"\ud83c\udc61 \u5ba2\u6237: {customer.name} ({customer.id})")
             
             # \u6b65\u9aa42\uff1a\u68c0\u67e5\u65f6\u95f4\u69fd
-            from src.database.models import StylistTimeSlot
+            from backend.database.models import StylistTimeSlot
             slot = db.query(StylistTimeSlot).filter(
                 StylistTimeSlot.id == uuid.UUID(slot_id)
             ).first()
@@ -144,7 +144,7 @@ class ClientAppointmentService:
         
         db = SessionLocal()
         try:
-            from src.database.models import User
+            from backend.database.models import User
             customer = db.query(User).filter(
                 User.phone == customer_phone
             ).first()
@@ -157,10 +157,12 @@ class ClientAppointmentService:
             result = [
                 {
                     "appointment_id": str(apt.id),
+                    "customer_name": apt.customer.name,
                     "stylist_name": apt.stylist.user.name,
                     "service": apt.service,
                     "appointment_datetime": apt.appointment_datetime.isoformat(),
-                    "status": apt.status.value
+                    "status": apt.status.value,
+                    "notes": apt.notes,
                 }
                 for apt in appointments
             ]

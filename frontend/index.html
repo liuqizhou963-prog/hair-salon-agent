@@ -676,22 +676,41 @@
 
 <script>
 const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
+const AUTH_TOKEN_KEY = "hengyi_access_token";
+const DEFAULT_STYLIST_PHOTO = `${API_BASE}/static/assets/stylists/sophie-bob.png`;
+const CUSTOMER_STYLIST_DISPLAY_LIMIT = 4;
 
 function esc(s) {
   return String(s ?? "").replace(/[&<>"']/g, c =>
     ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 }
 
-async function apiPost(path, body) {
-  const r = await fetch(API_BASE + path, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) });
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  return r.json();
+function authHeaders() {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-async function apiGet(path) {
-  const r = await fetch(API_BASE + path);
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  return r.json();
+async function apiRequest(path, options = {}) {
+  const headers = { ...(options.body ? {"Content-Type":"application/json"} : {}), ...authHeaders(), ...(options.headers || {}) };
+  const r = await fetch(API_BASE + path, { ...options, headers });
+  if (r.status === 401) {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    state.authenticated = false;
+    if (location.pathname !== "/" || document.querySelector('[data-screen="login"]')?.classList.contains("active") === false) go("login", false);
+  }
+  if (!r.ok) {
+    const detail = await r.json().catch(() => ({}));
+    throw new Error(detail.detail || ("HTTP " + r.status));
+  }
+  return r.status === 204 ? null : r.json();
+}
+
+async function apiPost(path, body, options = {}) {
+  return apiRequest(path, { ...options, method:"POST", body:JSON.stringify(body) });
+}
+
+async function apiGet(path, options = {}) {
+  return apiRequest(path, { ...options, method:"GET" });
 }
 
 const svg = {
@@ -709,90 +728,27 @@ const svg = {
   dismiss:'<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',
 };
 
-const stylistProfiles = [
-  {
-    stylist_id: "demo-sophie",
-    name: "苏菲",
-    displayName: "苏菲 老师",
-    specialty: "短发层次、法式刘海、轻盈造型",
-    experience_years: 8,
-    rating: 4.9,
-    bio: "擅长根据脸型做轻盈短发与空气感刘海，风格干净、自然、好打理。",
-    photo: "assets/stylists/sophie-bob.png",
-    bookings: 312,
-    works: 48
-  },
-  {
-    stylist_id: "demo-li-si",
-    name: "李四",
-    displayName: "李四 老师",
-    specialty: "男士裁剪、商务造型、纹理烫",
-    experience_years: 8,
-    rating: 4.8,
-    bio: "主打利落男士发型和商务质感造型，适合想要清爽、有型的顾客。",
-    photo: "assets/stylists/li-si.png",
-    bookings: 286,
-    works: 42
-  },
-  {
-    stylist_id: "demo-chen-yu",
-    name: "陈宇",
-    displayName: "陈宇 老师",
-    specialty: "韩系男发、蓬松纹理、轮廓修饰",
-    experience_years: 6,
-    rating: 4.9,
-    bio: "擅长韩系层次和头顶蓬松感处理，能把发型轮廓做得更显脸小。",
-    photo: "assets/stylists/chen-yu.png",
-    bookings: 268,
-    works: 36
-  },
-  {
-    stylist_id: "demo-zhou-ran",
-    name: "周然",
-    displayName: "周然 老师",
-    specialty: "日系清爽、自然微分、少年感造型",
-    experience_years: 5,
-    rating: 4.7,
-    bio: "偏自然、干净的日系审美，适合第一次尝试微分或轻纹理的顾客。",
-    photo: "assets/stylists/zhou-ran.png",
-    bookings: 241,
-    works: 31
-  }
+const stylistPhotoPool = [
+  "sophie-bob.png",
+  "li-si.png",
+  "chen-yu.png",
+  "zhou-ran.png",
 ];
-
-const demoSlotsByStylist = {
-  "demo-sophie": [
-    { slot_id: "demo-sophie-1", date: "2026-07-09", time: "10:00" },
-    { slot_id: "demo-sophie-2", date: "2026-07-09", time: "14:30" },
-    { slot_id: "demo-sophie-3", date: "2026-07-10", time: "18:00" }
-  ],
-  "demo-li-si": [
-    { slot_id: "demo-li-si-1", date: "2026-07-09", time: "11:00" },
-    { slot_id: "demo-li-si-2", date: "2026-07-10", time: "15:30" },
-    { slot_id: "demo-li-si-3", date: "2026-07-10", time: "19:00" }
-  ],
-  "demo-chen-yu": [
-    { slot_id: "demo-chen-yu-1", date: "2026-07-09", time: "13:00" },
-    { slot_id: "demo-chen-yu-2", date: "2026-07-11", time: "16:00" },
-    { slot_id: "demo-chen-yu-3", date: "2026-07-11", time: "18:30" }
-  ],
-  "demo-zhou-ran": [
-    { slot_id: "demo-zhou-ran-1", date: "2026-07-10", time: "10:30" },
-    { slot_id: "demo-zhou-ran-2", date: "2026-07-10", time: "14:00" },
-    { slot_id: "demo-zhou-ran-3", date: "2026-07-12", time: "17:30" }
-  ]
-};
 
 // =========================================================
 // STATE
 // =========================================================
 const state = {
-  user: { phone: "13900000001", name: "测试客户", level: "gold", points: 1280, balance: 328.00 },
+  authenticated: Boolean(localStorage.getItem(AUTH_TOKEN_KEY)),
+  authMode: "login",
+  user: { phone: "", name: "", level: "silver", points: 0, balance: 0.00 },
   selectedAmount: 300,
   appointments: [],
-  demoAppointments: [],
+  walletTransactions: [],
+  pointRecords: [],
+  notifications: [],
   appointmentsLoading: false,
-  stylists: stylistProfiles,
+  stylists: [],
   stylistsLoading: false,
   selectedStylistId: null,
   preferredOnly: false,
@@ -803,6 +759,26 @@ const state = {
 // =========================================================
 // PAGES
 // =========================================================
+
+function authPage() {
+  const register = state.authMode === "register";
+  return `
+    <div class="page-hero">
+      <div class="hero-brand"><span class="hair-logo"></span><span>HengYi Salon</span></div>
+      <h1 class="hero-title">${register ? "创建<br>账户" : "欢迎<br>回来"}</h1>
+      <div class="hero-copy-small">${register ? "注册后即可查看真实排档并管理预约。" : "登录后查看你的预约、会员权益和服务记录。"}</div>
+    </div>
+    <section class="section" style="margin-top:0">
+      <form id="authForm" class="card pad grid">
+        ${register ? '<label>姓名<input id="authName" required maxlength="100" autocomplete="name" aria-label="姓名"></label>' : ""}
+        <label>手机号<input id="authPhone" required inputmode="tel" autocomplete="tel" aria-label="手机号"></label>
+        <label>密码<input id="authPassword" required minlength="8" type="password" autocomplete="current-password" aria-label="密码"></label>
+        <button class="btn" type="submit">${register ? "注册并登录" : "登录"}</button>
+        <button class="btn secondary" type="button" data-auth-mode="${register ? "login" : "register"}">${register ? "已有账号，去登录" : "没有账号，去注册"}</button>
+        <div id="authError" class="meta" role="alert"></div>
+      </form>
+    </section>`;
+}
 
 function miniHero(title, copy, actions = "") {
   return `
@@ -874,7 +850,7 @@ function appointmentListHtml() {
   if (state.appointmentsLoading) {
     return `<div class="empty">${svg.calendar}<div>正在加载预约…</div></div>`;
   }
-  const appointments = [...state.demoAppointments, ...state.appointments];
+  const appointments = state.appointments;
   if (!appointments.length) {
     return `<div class="card pad">
       <strong>还没有预约记录</strong>
@@ -884,16 +860,18 @@ function appointmentListHtml() {
   }
   return appointments.map(a => {
     const stylist = findStylistForAppointment(a);
+    const canCancel = !["cancelled", "completed"].includes(a.status);
     return `
     <div class="appointment-mini-card">
       <span class="appointment-avatar">
-        <img src="${esc(stylist?.photo || "assets/stylists/sophie-bob.png")}" alt="${esc(a.stylist_name || stylist?.displayName || "发型师")}">
+        <img src="${esc(stylist?.photo || DEFAULT_STYLIST_PHOTO)}" alt="${esc(a.stylist_name || stylist?.displayName || "发型师")}">
       </span>
       <div class="appointment-info">
         <span class="appointment-title">${esc(a.stylist_name || stylist?.displayName || "发型师")} · ${esc(a.service || "洗剪吹")}</span>
         <span class="appointment-time">${esc(formatAppointmentTime(a.appointment_datetime || a.datetime_str))}</span>
       </div>
       <span class="pill ${a.status === "cancelled" ? "warn" : "dark"}">${statusText(a.status || "confirmed")}</span>
+      ${canCancel ? `<button class="btn small secondary" data-cancel-appointment="${esc(a.appointment_id)}" type="button">取消</button>` : ""}
     </div>`;
   }).join("");
 }
@@ -983,36 +961,35 @@ function pointsPage() {
       <section class="section">
         <div class="section-head"><h2>积分记录</h2></div>
         <div class="card pad">
-          <div class="line-item"><span><strong>+198</strong><div class="meta">修复护理消费积分</div></span><span class="meta">06-28</span></div>
-          <div class="line-item"><span><strong>+88</strong><div class="meta">洗剪吹消费积分</div></span><span class="meta">05-30</span></div>
-          <div class="line-item"><span><strong>-500</strong><div class="meta">积分兑换抵扣</div></span><span class="meta">05-10</span></div>
+          ${state.pointRecords.length ? state.pointRecords.map(record => `
+            <div class="line-item"><span><strong>${record.amount > 0 ? "+" : ""}${esc(record.amount)}</strong><div class="meta">${esc(record.reason)}</div></span><span class="meta">${esc(String(record.created_at || "").slice(5, 10))}</span></div>
+          `).join("") : '<div class="meta">还没有积分流水</div>'}
         </div>
       </section>
     </div>`;
 }
 
 function historyPage() {
-  const visits = [
-    { date:"2026-06-28", service:"修复护理", stylist:"Ada", amount:198 },
-    { date:"2026-05-30", service:"洗剪吹", stylist:"Leo", amount:88 },
-    { date:"2026-04-28", service:"烫发", stylist:"Cici", amount:598 },
-    { date:"2026-03-10", service:"染发", stylist:"Nora", amount:298 },
-  ];
+  if (state.appointmentsLoading) {
+    return `${miniHero("到店<br>记录", "从后端读取已完成的服务记录。")}
+      <div class="card pad"><div class="meta">正在加载记录…</div></div>`;
+  }
+  const visits = (state.appointments || []).filter(item => item.status === "completed");
   return `
-    ${miniHero("到店<br>记录", "查看每一次服务记录、老师和消费金额，方便下次继续预约熟悉的老师。")}
+    ${miniHero("到店<br>记录", "查看后端记录的已完成服务，方便下次继续预约熟悉的老师。")}
     <section class="section" style="margin-top:0">
       <div class="section-head"><h2>到店记录</h2></div>
       <div class="grid">
-        ${visits.map(v => `
+        ${visits.length ? visits.map(v => `
           <div class="card pad">
             <div class="spread">
               <div>
-                <strong>${esc(v.service)}</strong>
-                <div class="meta">${esc(v.stylist)} 老师 · ${esc(v.date)}</div>
+                <strong>${esc(v.service || "服务")}</strong>
+                <div class="meta">${esc(v.stylist_name || "发型师")} 老师 · ${esc(formatAppointmentTime(v.appointment_datetime))}</div>
               </div>
-              <strong class="price">￥${v.amount}</strong>
+              <span class="pill dark">已完成</span>
             </div>
-          </div>`).join("")}
+          </div>`).join("") : '<div class="card pad"><div class="meta">暂时没有已完成的到店记录</div></div>'}
       </div>
     </section>`;
 }
@@ -1149,9 +1126,31 @@ function formatSlotDate(dateText) {
 }
 
 async function loadAppointments() {
-  state.appointmentsLoading = false;
-  state.appointments = [];
+  state.appointmentsLoading = true;
   rerenderAppointments();
+  try {
+    state.appointments = await apiGet("/api/appointments");
+  } catch (error) {
+    state.appointments = [];
+  } finally {
+    state.appointmentsLoading = false;
+    rerenderAppointments();
+  }
+}
+
+async function loadHistory() {
+  state.appointmentsLoading = true;
+  const screen = document.querySelector('[data-screen="history"]');
+  if (screen?.classList.contains("active")) screen.innerHTML = historyPage();
+  try {
+    state.appointments = await apiGet("/api/appointments");
+  } catch (error) {
+    state.appointments = [];
+  } finally {
+    state.appointmentsLoading = false;
+    const current = document.querySelector('[data-screen="history"]');
+    if (current?.classList.contains("active")) current.innerHTML = historyPage();
+  }
 }
 
 function rerenderAppointments() {
@@ -1162,21 +1161,39 @@ function rerenderAppointments() {
 async function loadStylists() {
   state.stylistsLoading = true;
   rerenderBooking();
-  state.stylists = stylistProfiles;
-  state.stylistsLoading = false;
-  rerenderBooking();
+  try {
+    const data = await apiGet("/api/stylists");
+    state.stylists = data.slice(0, CUSTOMER_STYLIST_DISPLAY_LIMIT).map((stylist, index) => ({
+      ...stylist,
+      displayName: `${stylist.name} 老师`,
+      photo: `${API_BASE}/static/assets/stylists/${stylistPhotoPool[index % stylistPhotoPool.length]}`,
+      bookings: 0,
+      works: 0,
+    }));
+    if (state.selectedStylistId && !state.stylists.some(item => item.stylist_id === state.selectedStylistId)) {
+      state.selectedStylistId = null;
+      state.slots = [];
+    }
+  } catch (error) {
+    state.stylists = [];
+  } finally {
+    state.stylistsLoading = false;
+    rerenderBooking();
+  }
   if (state.selectedStylistId) loadSlots(state.selectedStylistId);
 }
 
 async function loadSlots(stylistId) {
   state.slotsLoading = true;
   rerenderSlots();
-  state.slots = (demoSlotsByStylist[stylistId] || demoSlotsByStylist[stylistProfiles[0].stylist_id]).map(slot => ({
-    ...slot,
-    datetime_str: `${slot.date} ${slot.time}`
-  }));
-  state.slotsLoading = false;
-  rerenderSlots();
+  try {
+    state.slots = await apiGet(`/api/stylists/${encodeURIComponent(stylistId)}/slots`);
+  } catch (error) {
+    state.slots = [];
+  } finally {
+    state.slotsLoading = false;
+    rerenderSlots();
+  }
 }
 
 function rerenderBooking() {
@@ -1192,24 +1209,8 @@ function rerenderSlots() {
 async function bookSlot(slotId) {
   const stylist = state.stylists.find(s => s.stylist_id === state.selectedStylistId);
   if (!stylist) return;
-  if (slotId.startsWith("demo-")) {
-    const slot = state.slots.find(item => item.slot_id === slotId);
-    state.demoAppointments.unshift({
-      appointment_id: `${slotId}-${Date.now()}`,
-      stylist_id: stylist.stylist_id,
-      stylist_name: stylist.displayName,
-      service: "洗剪吹",
-      appointment_datetime: slot ? `${slot.date} ${slot.time}` : "",
-      status: "confirmed"
-    });
-    alert(`已预约 ${stylist.name} 老师`);
-    go("mine");
-    return;
-  }
   try {
     await apiPost("/api/appointments", {
-      phone: state.user.phone,
-      name: state.user.name,
       stylist_id: stylist.stylist_id,
       slot_id: slotId,
       service: "洗剪吹",
@@ -1229,20 +1230,22 @@ async function bookSlot(slotId) {
 function profilePage() {
   return `${miniHero("个人<br>资料", "维护姓名、手机号和生日信息，方便门店为你同步预约与会员权益。")}
   <div class="card pad grid">
-    <label>姓名<input value="${esc(state.user.name)}" aria-label="姓名"></label>
-    <label>手机号<input value="${esc(state.user.phone)}" aria-label="手机号"></label>
-    <label>生日（MM-DD）<input value="08-18" aria-label="生日"></label>
-    <button class="btn" data-go="mine">保存</button>
+    <label>姓名<input id="profileName" value="${esc(state.user.name)}" aria-label="姓名"></label>
+    <label>手机号<input value="${esc(state.user.phone)}" aria-label="手机号" readonly></label>
+    <label>生日（MM-DD）<input id="profileBirthday" value="${esc(state.user.birthday || "")}" aria-label="生日" placeholder="例如 08-18"></label>
+    <button class="btn" id="saveProfileBtn" type="button">保存</button>
+    <button class="btn secondary" id="logoutBtn" type="button">退出登录</button>
   </div>`;
 }
 
 function pushPage() {
-  return `${miniHero("推送<br>通知", "开启预约提醒、积分变动和生日活动，不错过常用老师的可约时间。")}
+  return `${miniHero("站内<br>通知", "预约变更、积分到账和退款进度都会显示在这里。")}
   <div class="card pad">
-    ${["复购提醒","生日活动","积分变动"].map(x => `
-      <div class="line-item"><span><strong>${x}</strong></span>
-        <input type="checkbox" checked style="width:44px;min-height:28px;accent-color:var(--teal)">
-      </div>`).join("")}
+    ${state.notifications.length ? state.notifications.map(item => `
+      <button class="line-item" data-read-notification="${esc(item.notification_id)}">
+        <span><strong>${esc(item.title)}</strong><div class="meta">${esc(item.body)}</div></span>
+        <span class="meta">${item.is_read ? "已读" : "未读"}</span>
+      </button>`).join("") : '<div class="meta">暂时没有通知</div>'}
   </div>`;
 }
 
@@ -1269,6 +1272,7 @@ function successPage(title, copy, next) {
 // PAGE REGISTRY
 // =========================================================
 const pages = {
+  login:          { tab:"mine",  title:"登录",     html: authPage },
   mine:          { tab:"mine",  title:"我的",     html: minePage },
   recharge:      { tab:"mine",  title:"充值",      html: rechargePage },
   refund:        { tab:"mine",  title:"余额退款",  html: refundPage },
@@ -1292,6 +1296,10 @@ const stack = [];
 
 function go(id, push = true) {
   if (!pages[id]) return;
+  if (id !== "login" && !state.authenticated) {
+    go("login", false);
+    return;
+  }
   const cur = document.querySelector(".screen.active")?.dataset.screen;
   if (push && cur && cur !== id) stack.push(cur);
 
@@ -1316,8 +1324,74 @@ function go(id, push = true) {
   if (id === "mine") loadAppointments();
   if (id === "booking" && !state.stylists.length && !state.stylistsLoading) loadStylists();
   if (id === "teacherSchedule" && state.selectedStylistId) loadSlots(state.selectedStylistId);
+  if (id === "history") loadHistory();
   if (id === "recharge") wireRecharge();
   if (id === "refund") wireRefund();
+  if (id === "profile") wireProfile();
+  if (id === "login") wireAuth();
+}
+
+async function loadCurrentUser() {
+  const user = await apiGet("/api/auth/me");
+  state.user = { ...state.user, ...user };
+  const [members, wallet, pointRecords, notifications] = await Promise.all([
+    apiGet("/api/members"),
+    apiGet("/api/wallet"),
+    apiGet("/api/points/transactions"),
+    apiGet("/api/notifications"),
+  ]);
+  const member = members[0];
+  state.walletTransactions = wallet.transactions || [];
+  state.pointRecords = pointRecords || [];
+  state.notifications = notifications || [];
+  state.user.balance = wallet.balance || 0;
+  if (member) {
+    state.user = {
+      ...state.user,
+      level: member.level,
+      points: member.points,
+      birthday: member.birthday,
+    };
+  }
+  state.authenticated = true;
+}
+
+function wireAuth() {
+  document.querySelector("#authForm")?.addEventListener("submit", async event => {
+    event.preventDefault();
+    const errorEl = document.querySelector("#authError");
+    if (errorEl) errorEl.textContent = "正在处理…";
+    const phone = document.querySelector("#authPhone")?.value.trim();
+    const password = document.querySelector("#authPassword")?.value || "";
+    const name = document.querySelector("#authName")?.value.trim();
+    try {
+      if (state.authMode === "register") {
+        await apiRequest("/api/auth/register", {
+          method: "POST",
+          body: JSON.stringify({ phone, name, password }),
+        });
+      }
+      const token = await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ phone, password }),
+      });
+      localStorage.setItem(AUTH_TOKEN_KEY, token.access_token);
+      state.authenticated = true;
+      await loadCurrentUser();
+      go("mine", false);
+    } catch (error) {
+      if (errorEl) errorEl.textContent = error.message || "登录失败，请检查输入";
+    }
+  });
+}
+
+function logout() {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+  state.authenticated = false;
+  state.user = { phone: "", name: "", level: "silver", points: 0, balance: 0 };
+  state.appointments = [];
+  state.stylists = [];
+  go("login", false);
 }
 
 function wireRecharge() {
@@ -1332,26 +1406,91 @@ function wireRecharge() {
     const custom = document.querySelector("#customAmount")?.value;
     const amount = custom ? Number(custom) : state.selectedAmount;
     if (!amount || amount < 1) return;
-    state.user.balance += amount;
-    go("rechargeOk");
+    try {
+      await apiPost("/api/wallet/recharge", { amount, note: "客户 H5 演示充值" });
+      await loadCurrentUser();
+      go("rechargeOk");
+    } catch (error) {
+      alert(error.message || "充值失败");
+    }
   });
 }
 
 function wireRefund() {
-  document.querySelector("#refundBtn")?.addEventListener("click", () => {
+  document.querySelector("#refundBtn")?.addEventListener("click", async () => {
     const amount = Number(document.querySelector("#refundAmount")?.value || 0);
     if (!amount || amount < 1 || amount > state.user.balance) {
       alert("请输入有效退款金额");
       return;
     }
-    state.user.balance = Math.max(0, state.user.balance - amount);
-    alert("退款申请已提交");
-    go("mine");
+    try {
+      await apiPost("/api/refunds", { amount, reason: "客户 H5 申请退款" });
+      await loadCurrentUser();
+      alert("退款申请已提交，等待门店审批");
+      go("mine");
+    } catch (error) {
+      alert(error.message || "退款申请失败");
+    }
   });
+}
+
+function wireProfile() {
+  document.querySelector("#saveProfileBtn")?.addEventListener("click", async () => {
+    const name = document.querySelector("#profileName")?.value.trim();
+    const birthday = document.querySelector("#profileBirthday")?.value.trim();
+    if (!name) {
+      alert("姓名不能为空");
+      return;
+    }
+    try {
+      const user = await apiRequest("/api/profile", {
+        method: "PATCH",
+        body: JSON.stringify({ name, birthday: birthday || null }),
+      });
+      state.user = { ...state.user, ...user };
+      alert("资料已保存");
+      go("mine", false);
+    } catch (error) {
+      alert(error.message || "资料保存失败");
+    }
+  });
+}
+
+async function cancelAppointment(appointmentId) {
+  if (!window.confirm("确定取消这次预约吗？")) return;
+  try {
+    await apiRequest(`/api/appointments/${encodeURIComponent(appointmentId)}`, { method: "DELETE" });
+    await loadAppointments();
+    alert("预约已取消");
+  } catch (error) {
+    alert(error.message || "取消预约失败");
+  }
 }
 
 // global click delegation for data-go
 document.addEventListener("click", e => {
+  const authMode = e.target.closest("[data-auth-mode]");
+  if (authMode) {
+    state.authMode = authMode.dataset.authMode;
+    go("login", false);
+    return;
+  }
+  if (e.target.closest("#logoutBtn")) {
+    logout();
+    return;
+  }
+  const notification = e.target.closest("[data-read-notification]");
+  if (notification) {
+    apiPost(`/api/notifications/${encodeURIComponent(notification.dataset.readNotification)}/read`, {})
+      .then(loadCurrentUser)
+      .then(() => go("push", false));
+    return;
+  }
+  const cancel = e.target.closest("[data-cancel-appointment]");
+  if (cancel) {
+    cancelAppointment(cancel.dataset.cancelAppointment);
+    return;
+  }
   const btn = e.target.closest("[data-go]");
   if (btn) go(btn.dataset.go);
 });
@@ -1394,7 +1533,7 @@ backBtn.addEventListener("click", () => {
 // =========================================================
 // BOOT
 // =========================================================
-function boot() {
+async function boot() {
   // seed initial screens so they exist in DOM
   Object.keys(pages).forEach(id => {
     const s = document.createElement("section");
@@ -1403,12 +1542,22 @@ function boot() {
     root.appendChild(s);
   });
   const params = new URLSearchParams(window.location.search);
-  const initialPage = pages[params.get("page")] ? params.get("page") : "mine";
+  const initialPage = pages[params.get("page")] && params.get("page") !== "login" ? params.get("page") : "mine";
   if (params.get("preferred") === "1") {
     state.preferredOnly = true;
     localStorage.setItem("preferredOnly", "true");
   }
-  go(initialPage, false);
+  if (state.authenticated) {
+    try {
+      await loadCurrentUser();
+      go(initialPage, false);
+    } catch (error) {
+      state.authenticated = false;
+      go("login", false);
+    }
+  } else {
+    go("login", false);
+  }
 
   // wire nav icons
   const navBooking = document.querySelector('[data-tab="booking"]');

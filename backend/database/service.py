@@ -1,4 +1,4 @@
-"""数据库业务服务层"""
+﻿"""数据库业务服务层"""
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
@@ -7,7 +7,7 @@ from typing import List, Optional
 from loguru import logger
 import uuid
 
-from src.database.models import (
+from backend.database.models import (
     User, Stylist, StylistTimeSlot, Appointment, Member, Transaction,
     UserRole, AppointmentStatus, MemberLevel
 )

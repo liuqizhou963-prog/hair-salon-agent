@@ -26,12 +26,21 @@ Page({
     this.setData({ birthday: event.detail.value });
   },
 
-  save() {
+  async save() {
     const app = getApp();
-    app.globalData.user.name = this.data.name;
-    app.globalData.user.phone = this.data.phone;
-    app.globalData.user.birthday = this.data.birthday;
-    wx.showToast({ title: "已保存", icon: "success" });
-    setTimeout(() => wx.switchTab({ url: "/pages/mine/mine" }), 500);
+    try {
+      await app.request("/api/profile", {
+        method: "PATCH",
+        data: {
+          name: this.data.name,
+          birthday: this.data.birthday || null
+        }
+      });
+      await app.loadCurrentUser();
+      wx.showToast({ title: "已保存", icon: "success" });
+      setTimeout(() => wx.switchTab({ url: "/pages/mine/mine" }), 500);
+    } catch (error) {
+      wx.showToast({ title: error.message || "保存失败", icon: "none" });
+    }
   }
 });

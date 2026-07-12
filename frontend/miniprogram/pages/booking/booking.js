@@ -12,8 +12,15 @@ Page({
     showEmptyStylists: false
   },
 
-  onShow() {
-    this.refreshStylists();
+  async onShow() {
+    var app = getApp();
+    if (!app.ensureAuthenticated()) return;
+    try {
+      if (!app.globalData.stylists.length) await app.loadStylists();
+      this.refreshStylists();
+    } catch (error) {
+      wx.showToast({ title: error.message || "老师加载失败", icon: "none" });
+    }
   },
 
   refreshStylists() {

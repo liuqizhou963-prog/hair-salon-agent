@@ -4,23 +4,16 @@
       <view class="hair-logo"></view>
       <text>HengYi Salon</text>
     </view>
-    <text class="hero-title">推送
+    <text class="hero-title">站内
 通知</text>
-    <text class="hero-copy">开启预约提醒、积分变动和生日活动，不错过常用老师的可约时间。</text>
+    <text class="hero-copy">预约变更、积分到账和退款进度都会显示在这里。</text>
   </view>
 
   <view class="card line-card">
-    <view class="line-item">
-      <text class="line-title">复购提醒</text>
-      <switch checked="{{notifications.revisit}}" data-key="revisit" bindchange="toggle" color="#1f746b" />
+    <view wx:for="{{notifications}}" wx:key="notification_id" class="line-item" data-id="{{item.notification_id}}" bindtap="read">
+      <view><text class="line-title">{{item.title}}</text><text class="line-meta">{{item.body}}</text></view>
+      <text class="line-meta">{{item.is_read ? '已读' : '未读'}}</text>
     </view>
-    <view class="line-item">
-      <text class="line-title">生日活动</text>
-      <switch checked="{{notifications.birthday}}" data-key="birthday" bindchange="toggle" color="#1f746b" />
-    </view>
-    <view class="line-item">
-      <text class="line-title">积分变动</text>
-      <switch checked="{{notifications.points}}" data-key="points" bindchange="toggle" color="#1f746b" />
-    </view>
+    <view wx:if="{{!notifications.length}}" class="line-item"><text class="line-meta">暂时没有通知</text></view>
   </view>
 </view>

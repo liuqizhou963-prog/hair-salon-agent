@@ -1,104 +1,164 @@
 App({
   globalData: {
-    user: {
-      name: "测试客户",
-      phone: "13800000000",
-      birthday: "08-18",
-      level: "GOLD",
-      balance: 328,
-      points: 1280
-    },
+    // 真机或微信开发者工具中可把这里改成后端的局域网地址。
+    apiBase: "http://127.0.0.1:8000",
+    token: "",
+    user: null,
     selectedAmount: 300,
     selectedStylistId: "",
     preferredOnly: false,
-    notifications: {
-      revisit: true,
-      birthday: true,
-      points: true
-    },
+    notifications: [],
     appointments: [],
-    visits: [
-      { date: "2026-06-28", service: "修复护理", stylist: "Ada", amount: 198 },
-      { date: "2026-05-30", service: "洗剪吹", stylist: "Leo", amount: 88 },
-      { date: "2026-04-28", service: "烫发", stylist: "Cici", amount: 598 },
-      { date: "2026-03-10", service: "染发", stylist: "Nora", amount: 298 }
-    ],
-    pointsRecords: [
-      { value: "+198", desc: "修复护理消费积分", date: "06-28" },
-      { value: "+88", desc: "洗剪吹消费积分", date: "05-30" },
-      { value: "-500", desc: "积分兑换抵扣", date: "05-10" }
-    ],
-    stylists: [
-      {
-        stylist_id: "demo-sophie",
-        name: "苏菲",
-        displayName: "苏菲 老师",
-        specialty: "短发层次、法式刘海、轻盈造型",
-        experience_years: 8,
-        rating: 4.9,
-        bio: "擅长根据脸型做轻盈短发与空气感刘海，风格干净、自然、好打理。",
-        photo: "/assets/stylists/sophie-portrait.png",
-        bookings: 312,
-        works: 48
-      },
-      {
-        stylist_id: "demo-li-si",
-        name: "李四",
-        displayName: "李四 老师",
-        specialty: "男士裁剪、商务造型、纹理烫",
-        experience_years: 8,
-        rating: 4.8,
-        bio: "主打利落男士发型和商务质感造型，适合想要清爽、有型的顾客。",
-        photo: "/assets/stylists/li-si-portrait.png",
-        bookings: 286,
-        works: 42
-      },
-      {
-        stylist_id: "demo-chen-yu",
-        name: "陈宇",
-        displayName: "陈宇 老师",
-        specialty: "韩系男发、蓬松纹理、轮廓修饰",
-        experience_years: 6,
-        rating: 4.9,
-        bio: "擅长韩系层次和头顶蓬松感处理，能把发型轮廓做得更显脸小。",
-        photo: "/assets/stylists/chen-yu-portrait.png",
-        bookings: 268,
-        works: 36
-      },
-      {
-        stylist_id: "demo-zhou-ran",
-        name: "周然",
-        displayName: "周然 老师",
-        specialty: "日系清爽、自然微分、少年感造型",
-        experience_years: 5,
-        rating: 4.7,
-        bio: "偏自然、干净的日系审美，适合第一次尝试微分或轻纹理的顾客。",
-        photo: "/assets/stylists/zhou-ran-portrait.png",
-        bookings: 241,
-        works: 31
-      }
-    ],
-    slotsByStylist: {
-      "demo-sophie": [
-        { slot_id: "demo-sophie-1", date: "2026-07-10", time: "10:00" },
-        { slot_id: "demo-sophie-2", date: "2026-07-10", time: "14:30" },
-        { slot_id: "demo-sophie-3", date: "2026-07-11", time: "18:00" }
-      ],
-      "demo-li-si": [
-        { slot_id: "demo-li-si-1", date: "2026-07-10", time: "11:00" },
-        { slot_id: "demo-li-si-2", date: "2026-07-11", time: "15:30" },
-        { slot_id: "demo-li-si-3", date: "2026-07-11", time: "19:00" }
-      ],
-      "demo-chen-yu": [
-        { slot_id: "demo-chen-yu-1", date: "2026-07-10", time: "13:00" },
-        { slot_id: "demo-chen-yu-2", date: "2026-07-12", time: "16:00" },
-        { slot_id: "demo-chen-yu-3", date: "2026-07-12", time: "18:30" }
-      ],
-      "demo-zhou-ran": [
-        { slot_id: "demo-zhou-ran-1", date: "2026-07-11", time: "10:30" },
-        { slot_id: "demo-zhou-ran-2", date: "2026-07-11", time: "14:00" },
-        { slot_id: "demo-zhou-ran-3", date: "2026-07-13", time: "17:30" }
-      ]
-    }
+    visits: [],
+    pointsRecords: [],
+    walletTransactions: [],
+    stylists: [],
+    slotsByStylist: {},
+    customerStylistDisplayLimit: 4
+  },
+
+  onLaunch() {
+    this.globalData.token = wx.getStorageSync("hengyi_access_token") || "";
+  },
+
+  request(path, options) {
+    const config = options || {};
+    const app = this;
+    const header = Object.assign(
+      { "Content-Type": "application/json" },
+      app.globalData.token ? { Authorization: "Bearer " + app.globalData.token } : {},
+      config.header || {}
+    );
+
+    return new Promise((resolve, reject) => {
+      wx.request({
+        url: app.globalData.apiBase + path,
+        method: config.method || "GET",
+        data: config.data || {},
+        header,
+        success(response) {
+          if (response.statusCode === 401 && !config.skipAuthRedirect) {
+            app.logout();
+            reject(new Error("登录已失效"));
+            return;
+          }
+          if (response.statusCode < 200 || response.statusCode >= 300) {
+            const detail = response.data && response.data.detail;
+            reject(new Error(detail || "请求失败"));
+            return;
+          }
+          resolve(response.data);
+        },
+        fail(error) {
+          reject(error);
+        }
+      });
+    });
+  },
+
+  ensureAuthenticated() {
+    if (this.globalData.token) return true;
+    wx.redirectTo({ url: "/pages/login/login" });
+    return false;
+  },
+
+  async login(phone, password) {
+    const result = await this.request("/api/auth/login", {
+      method: "POST",
+      data: { phone, password },
+      skipAuthRedirect: true
+    });
+    this.globalData.token = result.access_token;
+    wx.setStorageSync("hengyi_access_token", result.access_token);
+    await this.loadCurrentUser();
+    return result;
+  },
+
+  async register(phone, name, password) {
+    await this.request("/api/auth/register", {
+      method: "POST",
+      data: { phone, name, password },
+      skipAuthRedirect: true
+    });
+    return this.login(phone, password);
+  },
+
+  async loadCurrentUser() {
+    const user = await this.request("/api/auth/me");
+    const results = await Promise.all([
+      this.request("/api/members"),
+      this.request("/api/wallet"),
+      this.request("/api/points/transactions"),
+      this.request("/api/notifications")
+    ]);
+    const members = results[0];
+    const wallet = results[1];
+    const pointRecords = results[2];
+    const notifications = results[3];
+    const member = members[0] || {};
+    this.globalData.user = Object.assign({
+      name: user.name,
+      phone: user.phone,
+      level: "silver",
+      balance: Number(wallet.balance || 0),
+      points: 0
+    }, user, {
+      level: member.level || "silver",
+      points: Number(member.points || 0),
+      birthday: member.birthday || ""
+    });
+    this.globalData.walletTransactions = wallet.transactions || [];
+    this.globalData.pointRecords = (pointRecords || []).map(item => ({
+      value: (item.amount > 0 ? "+" : "") + item.amount,
+      desc: item.reason,
+      date: String(item.created_at || "").slice(5, 10)
+    }));
+    this.globalData.notifications = notifications || [];
+    return this.globalData.user;
+  },
+
+  async loadStylists() {
+    const data = await this.request("/api/stylists");
+    const photos = [
+      "/assets/stylists/chen-yu-portrait.png",
+      "/assets/stylists/li-si-portrait.png",
+      "/assets/stylists/sophie-portrait.png",
+      "/assets/stylists/zhou-ran-portrait.png"
+    ];
+    this.globalData.stylists = data.slice(0, this.globalData.customerStylistDisplayLimit).map((item, index) => Object.assign({}, item, {
+      displayName: item.name + " 老师",
+      photo: photos[index % photos.length],
+      bookings: 0,
+      works: 0
+    }));
+    return this.globalData.stylists;
+  },
+
+  async loadSlots(stylistId) {
+    const slots = await this.request(
+      "/api/stylists/" + encodeURIComponent(stylistId) + "/slots"
+    );
+    this.globalData.slotsByStylist[stylistId] = slots;
+    return slots;
+  },
+
+  async loadAppointments() {
+    const appointments = await this.request("/api/appointments");
+    this.globalData.appointments = appointments.map(item => ({
+      ...item,
+      time_text: String(item.appointment_datetime || "").replace("T", " ").slice(0, 16),
+      photo: "/assets/stylists/chen-yu-portrait.png"
+    }));
+    return this.globalData.appointments;
+  },
+
+  logout() {
+    this.globalData.token = "";
+    this.globalData.user = null;
+    this.globalData.appointments = [];
+    this.globalData.stylists = [];
+    this.globalData.slotsByStylist = {};
+    wx.removeStorageSync("hengyi_access_token");
+    wx.redirectTo({ url: "/pages/login/login" });
   }
 });

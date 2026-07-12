@@ -14,12 +14,15 @@
       <text class="section-title">到店记录</text>
     </view>
     <view class="visit-list">
-      <view wx:for="{{visits}}" wx:key="date" class="card visit-card">
+      <view wx:if="{{visits.length}}" wx:for="{{visits}}" wx:key="date" class="card visit-card">
         <view>
           <text class="visit-service">{{item.service}}</text>
           <text class="line-meta">{{item.stylist}} 老师 · {{item.date}}</text>
         </view>
-        <text class="visit-price">￥{{item.amount}}</text>
+        <text class="visit-price">{{item.status}}</text>
+      </view>
+      <view wx:if="{{!visits.length}}" class="card visit-card empty-visit-card">
+        <text class="line-meta">暂时没有已完成的到店记录</text>
       </view>
     </view>
   </view>

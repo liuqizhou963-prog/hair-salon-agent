@@ -1,0 +1,320 @@
+﻿"""API Pydantic 模型 — 请求/响应校验"""
+
+from pydantic import BaseModel, ConfigDict, Field
+from typing import Any, Optional, List
+
+
+# ===== 健康检查 =====
+
+class HealthResponse(BaseModel):
+    status: str
+    app: str
+    version: str
+
+
+# ===== AI 对话 =====
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, description="用户消息")
+    phone: str = Field(..., description="客户手机号，用于识别身份")
+    name: Optional[str] = Field(None, description="客户姓名，新客户时需要")
+    role: str = Field("customer", description="对话身份：customer(顾客顾问) / staff(店员助手)")
+
+
+class ChatResponse(BaseModel):
+    reply: str = Field(..., description="AI 回复")
+    actions: List[str] = Field(default_factory=list, description="Agent 执行了哪些工具")
+
+
+class StaffAgentQueryRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=500, description="员工查询问题")
+
+
+class StaffAgentQueryResponse(BaseModel):
+    task_id: str
+    status: str
+    reply: str
+    actions: List[str] = Field(default_factory=list)
+    sources: List[str] = Field(default_factory=list)
+
+
+class AppointmentChangeProposalRequest(BaseModel):
+    appointment_id: str = Field(..., description="待调整预约 ID")
+    new_slot_id: str = Field(..., description="新的时间槽 ID")
+    new_stylist_id: Optional[str] = Field(None, description="新的发型师 ID，不传则沿用原发型师")
+    service: Optional[str] = Field(None, min_length=1, max_length=100)
+    notes: Optional[str] = Field(None, max_length=500)
+
+
+class AgentTaskResponse(BaseModel):
+    task_id: str
+    workflow_type: str
+    status: str
+    awaiting_confirmation: bool
+    input_payload: Optional[dict[str, Any]] = None
+    result_payload: Optional[dict[str, Any]] = None
+    created_at: str
+    updated_at: str
+
+
+class AgentConfirmationRequest(BaseModel):
+    confirmed: bool
+
+
+class RetentionAgentResponse(BaseModel):
+    task_id: str
+    status: str
+    summary: dict[str, int]
+    recommendations: List[dict[str, Any]] = Field(default_factory=list)
+
+
+# ===== 登录与身份 =====
+
+class AuthRegisterRequest(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=20)
+    name: str = Field(..., min_length=1, max_length=100)
+    password: str = Field(..., min_length=8, max_length=128)
+
+
+class AuthLoginRequest(BaseModel):
+    phone: str = Field(..., min_length=6, max_length=20)
+    password: str = Field(..., min_length=1, max_length=128)
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int
+
+
+class CurrentUserResponse(BaseModel):
+    user_id: str
+    name: str
+    phone: str
+    role: str
+    birthday: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    birthday: Optional[str] = Field(
+        None,
+        pattern=r"^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$",
+        description="生日，MM-DD 格式",
+    )
+
+
+# ===== 发型师 =====
+
+class StylistResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    stylist_id: str
+    name: str
+    phone: str
+    specialty: str
+    experience_years: int
+    rating: float
+    bio: Optional[str] = None
+    is_available: bool
+
+
+# ===== 时间槽 =====
+
+class TimeSlotResponse(BaseModel):
+    slot_id: str
+    date: str
+    time: str
+    datetime_str: str
+    is_booked: bool
+
+
+# ===== 预约 =====
+
+class AppointmentCreate(BaseModel):
+    phone: Optional[str] = Field(None, description="兼容旧客户端，后端以登录身份为准")
+    name: Optional[str] = Field(None, description="兼容旧客户端，后端以登录身份为准")
+    stylist_id: str = Field(..., description="发型师ID")
+    slot_id: str = Field(..., description="时间槽ID")
+    service: str = Field(..., description="服务类型，如烫、染、护理")
+    notes: Optional[str] = Field(None, description="备注")
+
+
+class AppointmentResponse(BaseModel):
+    appointment_id: str
+    customer_name: str
+    stylist_name: str
+    service: str
+    appointment_datetime: str
+    status: str
+    notes: Optional[str] = None
+
+
+# ===== 会员与营销 =====
+
+class CustomerResponse(BaseModel):
+    customer_id: str
+    name: str
+    phone: str
+    birthday: Optional[str] = None
+    total_spent: float = 0
+    last_visit: Optional[str] = None
+
+
+class MemberCreate(BaseModel):
+    phone: str = Field(..., description="客户手机号")
+    name: str = Field(..., description="客户姓名")
+    birthday: Optional[str] = Field(None, description="生日，MM-DD 格式")
+    level: str = Field("silver", description="会员等级：silver/gold/platinum")
+
+
+class MemberResponse(BaseModel):
+    member_id: str
+    customer_id: str
+    name: str
+    phone: str
+    level: str
+    points: int
+    birthday: Optional[str] = None
+    birthday_bonus_claimed: bool
+    expires_at: Optional[str] = None
+
+
+class TransactionCreate(BaseModel):
+    phone: str = Field(..., description="客户手机号")
+    amount: float = Field(..., gt=0, description="消费金额")
+    service: str = Field(..., description="消费项目")
+    appointment_id: Optional[str] = Field(None, description="关联预约ID")
+
+
+class TransactionResponse(BaseModel):
+    transaction_id: str
+    customer_name: str
+    phone: str
+    amount: float
+    service: str
+    created_at: str
+    points_added: int
+
+
+# ===== 钱包、退款、通知 =====
+
+class RechargeRequest(BaseModel):
+    amount: float = Field(..., gt=0, description="充值金额，单位元")
+    note: Optional[str] = Field(None, max_length=255)
+
+
+class WalletTransactionResponse(BaseModel):
+    transaction_id: str
+    amount_cents: int
+    direction: str
+    transaction_type: str
+    balance_after_cents: int
+    note: Optional[str] = None
+    created_at: str
+
+
+class WalletResponse(BaseModel):
+    wallet_id: str
+    balance_cents: int
+    balance: float
+    transactions: List[WalletTransactionResponse] = Field(default_factory=list)
+
+
+class RefundCreate(BaseModel):
+    amount: float = Field(..., gt=0, description="退款金额，单位元")
+    reason: Optional[str] = Field(None, max_length=255)
+
+
+class RefundResponse(BaseModel):
+    refund_id: str
+    amount_cents: int
+    amount: float
+    status: str
+    reason: Optional[str] = None
+    created_at: str
+    processed_at: Optional[str] = None
+
+
+class NotificationResponse(BaseModel):
+    notification_id: str
+    kind: str
+    title: str
+    body: str
+    is_read: bool
+    created_at: str
+    read_at: Optional[str] = None
+
+
+class AuditLogResponse(BaseModel):
+    audit_id: str
+    actor_user_id: Optional[str] = None
+    action: str
+    entity_type: str
+    entity_id: str
+    details: Optional[str] = None
+    created_at: str
+
+
+class PointTransactionResponse(BaseModel):
+    point_transaction_id: str
+    amount: int
+    balance_after: int
+    reason: str
+    created_at: str
+
+
+class BirthdayCampaignResponse(BaseModel):
+    member_id: str
+    name: str
+    phone: str
+    level: str
+    points: int
+    message: str
+
+
+# ===== 员工日程 =====
+
+class StaffAppointmentResponse(BaseModel):
+    appointment_id: str
+    customer_name: str
+    customer_phone: str
+    service: str
+    appointment_datetime: str
+    status: str
+    notes: Optional[str] = None
+
+class StaffScheduleResponse(BaseModel):
+    stylist_name: str
+    appointments: List[StaffAppointmentResponse]
+
+
+# ===== 客户维护 / 留存工作台 =====
+
+class ReminderResponse(BaseModel):
+    reminder_id: str
+    customer_id: str
+    customer_name: str
+    customer_phone: str
+    stylist_id: Optional[str] = None
+    stylist_name: Optional[str] = None
+    reminder_type: str          # repurchase / birthday / churn_risk
+    status: str
+    priority: int
+    reason: str
+    suggested_message: str
+    created_at: str
+
+
+class ScanResultResponse(BaseModel):
+    total: int
+    repurchase: int
+    birthday: int
+    churn_risk: int
+
+
+# ===== 初始化数据库 =====
+
+class InitDBResponse(BaseModel):
+    success: bool
+    message: str

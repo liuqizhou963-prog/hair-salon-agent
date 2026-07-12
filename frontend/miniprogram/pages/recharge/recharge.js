@@ -12,8 +12,15 @@ Page({
     ]
   },
 
-  onShow() {
+  async onShow() {
     const app = getApp();
+    if (!app.ensureAuthenticated()) return;
+    try {
+      await app.loadCurrentUser();
+    } catch (error) {
+      wx.showToast({ title: error.message || "钱包加载失败", icon: "none" });
+      return;
+    }
     this.setData({
       user: app.globalData.user,
       selectedAmount: app.globalData.selectedAmount || 300
@@ -48,15 +55,23 @@ Page({
     this.refreshAmounts();
   },
 
-  submitRecharge() {
+  async submitRecharge() {
     const app = getApp();
     const amount = Number(this.data.selectedAmount);
     if (!amount || amount < 1) {
       wx.showToast({ title: "请输入有效金额", icon: "none" });
       return;
     }
-    app.globalData.user.balance += amount;
-    app.globalData.selectedAmount = amount;
-    wx.navigateTo({ url: `/pages/recharge-ok/recharge-ok?amount=${amount}` });
+    try {
+      await app.request("/api/wallet/recharge", {
+        method: "POST",
+        data: { amount, note: "客户小程序演示充值" }
+      });
+      await app.loadCurrentUser();
+      app.globalData.selectedAmount = amount;
+      wx.navigateTo({ url: `/pages/recharge-ok/recharge-ok?amount=${amount}` });
+    } catch (error) {
+      wx.showToast({ title: error.message || "充值失败", icon: "none" });
+    }
   }
 });
