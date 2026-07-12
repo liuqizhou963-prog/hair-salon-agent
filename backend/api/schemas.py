@@ -1,4 +1,4 @@
-﻿"""API Pydantic 模型 — 请求/响应校验"""
+"""API Pydantic 模型 — 请求/响应校验"""
 
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Any, Optional, List
@@ -36,6 +36,8 @@ class StaffAgentQueryResponse(BaseModel):
     reply: str
     actions: List[str] = Field(default_factory=list)
     sources: List[str] = Field(default_factory=list)
+    trace_id: Optional[str] = None
+    trace: dict[str, Any] = Field(default_factory=dict)
 
 
 class AppointmentChangeProposalRequest(BaseModel):
@@ -66,6 +68,8 @@ class RetentionAgentResponse(BaseModel):
     status: str
     summary: dict[str, int]
     recommendations: List[dict[str, Any]] = Field(default_factory=list)
+    trace_id: Optional[str] = None
+    trace: dict[str, Any] = Field(default_factory=dict)
 
 
 # ===== 登录与身份 =====

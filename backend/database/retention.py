@@ -1,4 +1,4 @@
-"""客户维护 / 留存引擎 — 纯规则，不依赖 LLM
+﻿"""客户维护 / 留存引擎 — 纯规则，不依赖 LLM
 
 每日扫描全店客户，按「每个客户自己的历史到店节奏」判断谁该被联系，
 生成待办写入 ReminderLog，由发型师在工作台用自己微信联系客户。
@@ -305,13 +305,22 @@ class RetentionService:
         return True
 
     @staticmethod
-    def dismiss(db: Session, reminder_id: str) -> bool:
-        """忽略某条提醒"""
+    def dismiss(db: Session, reminder_id: str, actor: Optional[User] = None) -> bool:
+        """忽略某条提醒，并记录执行员工。"""
         reminder = db.query(ReminderLog).filter(
             ReminderLog.id == uuid.UUID(reminder_id)
         ).first()
         if not reminder:
             return False
         reminder.status = ReminderStatus.DISMISSED
+        if actor:
+            FinanceService.create_audit(
+                db,
+                actor.id,
+                "retention.reminder_dismissed",
+                "reminder_log",
+                str(reminder.id),
+                {"customer_id": str(reminder.customer_id), "reminder_type": reminder.reminder_type.value},
+            )
         db.commit()
         return True

@@ -12,6 +12,7 @@ from typing import Any, TypedDict
 
 from backend.database.connection import SessionLocal
 from backend.database.models import Member, User, UserRole, WalletAccount
+from backend.agents.trace import new_trace, trace_node
 
 try:
     from langgraph.graph import END, START, StateGraph
@@ -24,6 +25,8 @@ class RetentionState(TypedDict, total=False):
     candidates: list[dict[str, Any]]
     recommendations: list[dict[str, Any]]
     summary: dict[str, int]
+    trace_id: str
+    trace: dict[str, Any]
 
 
 def collect_candidates(state: RetentionState) -> RetentionState:
@@ -62,14 +65,14 @@ def collect_candidates(state: RetentionState) -> RetentionState:
                 })
     finally:
         db.close()
-    return {**state, "candidates": candidates}
+    return trace_node({**state, "candidates": candidates}, "collect_candidates", detail={"candidate_count": len(candidates)})
 
 
 def classify_candidates(state: RetentionState) -> RetentionState:
     summary = {"churn_risk": 0, "balance_customer": 0, "membership_expiring": 0}
     for item in state.get("candidates", []):
         summary[item["segment"]] = summary.get(item["segment"], 0) + 1
-    return {**state, "summary": summary}
+    return trace_node({**state, "summary": summary}, "classify_candidates", detail={"segments": summary})
 
 
 def generate_recommendations(state: RetentionState) -> RetentionState:
@@ -86,7 +89,7 @@ def generate_recommendations(state: RetentionState) -> RetentionState:
         }
         for item in state.get("candidates", [])
     ]
-    return {**state, "recommendations": recommendations}
+    return trace_node({**state, "recommendations": recommendations}, "generate_recommendations", detail={"recommendation_count": len(recommendations)})
 
 
 @lru_cache(maxsize=1)
@@ -105,7 +108,7 @@ def build_retention_graph():
 
 
 def run_retention_graph(requester_id: str) -> dict[str, Any]:
-    state: RetentionState = {"requester_id": requester_id}
+    state: RetentionState = {"requester_id": requester_id, **new_trace("retention_segmentation")}
     graph = build_retention_graph()
     if graph is None:
         state = collect_candidates(state)
@@ -113,5 +116,5 @@ def run_retention_graph(requester_id: str) -> dict[str, Any]:
         state = generate_recommendations(state)
     else:
         state = graph.invoke(state)
-    return {"summary": state.get("summary", {}), "recommendations": state.get("recommendations", [])}
+    return {"summary": state.get("summary", {}), "recommendations": state.get("recommendations", []), "trace_id": state.get("trace_id"), "trace": state.get("trace", {})}
 

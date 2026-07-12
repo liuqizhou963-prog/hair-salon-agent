@@ -1,0 +1,10 @@
+.git
+.gitignore
+.env
+hair_salon.db
+.pytest_cache
+__pycache__
+*.pyc
+chroma_data
+output
+frontend/node_modules

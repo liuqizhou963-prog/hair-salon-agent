@@ -20,6 +20,7 @@ from backend.database.models import Appointment, Member, User, UserRole
 from backend.database.retention import RetentionService
 from backend.staff.schedule import staff_schedule_service
 from backend.rag.retriever import retrieve
+from backend.agents.trace import new_trace, trace_node
 
 try:
     from langgraph.graph import END, START, StateGraph
@@ -39,6 +40,8 @@ class StaffQueryState(TypedDict, total=False):
     actions: List[str]
     sources: List[str]
     error: str
+    trace_id: str
+    trace: Dict[str, Any]
 
 
 def _date_from_message(message: str) -> str | None:
@@ -118,7 +121,7 @@ def classify_request(state: StaffQueryState) -> StaffQueryState:
     else:
         intent = "help"
 
-    return {**state, "intent": intent, "actions": [f"intent:{intent}"]}
+    return trace_node({**state, "intent": intent, "actions": [f"intent:{intent}"]}, "classify_request", detail={"intent": intent})
 
 
 def _appointment_payload(appointment: Appointment) -> dict[str, Any]:
@@ -141,7 +144,7 @@ def query_schedule(state: StaffQueryState) -> StaffQueryState:
         "date": date or datetime.now().strftime("%Y-%m-%d"),
         "schedule": schedule,
     }
-    return {**state, "tool_result": data, "actions": [*state.get("actions", []), "tool:get_salon_schedule"], "sources": ["database:staff_schedule"]}
+    return trace_node({**state, "tool_result": data, "actions": [*state.get("actions", []), "tool:get_salon_schedule"], "sources": ["database:staff_schedule"]}, "query_schedule", detail={"tool": "get_salon_schedule"})
 
 
 def _find_customer(db, message: str) -> User | None:
@@ -172,7 +175,7 @@ def query_customer(state: StaffQueryState) -> StaffQueryState:
             }
     finally:
         db.close()
-    return {**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:lookup_customer"], "sources": ["database:customers", "database:appointments"]}
+    return trace_node({**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:lookup_customer"], "sources": ["database:customers", "database:appointments"]}, "query_customer", detail={"tool": "lookup_customer"})
 
 
 def query_membership(state: StaffQueryState) -> StaffQueryState:
@@ -199,7 +202,7 @@ def query_membership(state: StaffQueryState) -> StaffQueryState:
         }
     finally:
         db.close()
-    return {**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:query_membership"], "sources": ["database:members", "database:wallets"]}
+    return trace_node({**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:query_membership"], "sources": ["database:members", "database:wallets"]}, "query_membership", detail={"tool": "query_membership"})
 
 
 def query_retention(state: StaffQueryState) -> StaffQueryState:
@@ -222,18 +225,18 @@ def query_retention(state: StaffQueryState) -> StaffQueryState:
         }
     finally:
         db.close()
-    return {**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:get_retention_reminders"], "sources": ["database:reminder_logs"]}
+    return trace_node({**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:get_retention_reminders"], "sources": ["database:reminder_logs"]}, "query_retention", detail={"tool": "get_retention_reminders"})
 
 
 def query_knowledge(state: StaffQueryState) -> StaffQueryState:
     docs = retrieve(state["message"], k=3)
     result = {"found": bool(docs), "knowledge": docs}
     sources = [f"rag:{item.get('title', '护理知识')}" for item in docs] or ["rag:none"]
-    return {**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:search_knowledge"], "sources": sources}
+    return trace_node({**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:search_knowledge"], "sources": sources}, "query_knowledge", detail={"tool": "search_knowledge", "result_count": len(docs)})
 
 
 def query_help(state: StaffQueryState) -> StaffQueryState:
-    return {**state, "tool_result": {}, "actions": [*state.get("actions", []), "tool:none"], "sources": []}
+    return trace_node({**state, "tool_result": {}, "actions": [*state.get("actions", []), "tool:none"], "sources": []}, "query_help", detail={"tool": "none"})
 
 
 def format_response(state: StaffQueryState) -> StaffQueryState:
@@ -270,7 +273,7 @@ def format_response(state: StaffQueryState) -> StaffQueryState:
         reply = "没有检索到匹配的护理知识。" if not docs else "\n\n".join(f"【{item.get('title', '护理知识')}】\n{item.get('content', '')}" for item in docs[:2])
     else:
         reply = "暂时无法识别这个查询，请换一种说法。"
-    return {**state, "reply": reply}
+    return trace_node({**state, "reply": reply}, "format_response")
 
 
 @lru_cache(maxsize=1)
@@ -306,7 +309,7 @@ def build_staff_query_graph():
 
 
 def run_staff_query(message: str, requester_id: str) -> dict[str, Any]:
-    state: StaffQueryState = {"message": message, "requester_id": requester_id}
+    state: StaffQueryState = {"message": message, "requester_id": requester_id, **new_trace("staff_readonly_query")}
     graph = build_staff_query_graph()
     if graph is None:
         logger.warning("LangGraph unavailable, using the same deterministic nodes sequentially: %s", _LANGGRAPH_IMPORT_ERROR)
@@ -328,4 +331,6 @@ def run_staff_query(message: str, requester_id: str) -> dict[str, Any]:
         "actions": state.get("actions", []),
         "sources": state.get("sources", []),
         "intent": state.get("intent", "unknown"),
+        "trace_id": state.get("trace_id"),
+        "trace": state.get("trace", {}),
     }

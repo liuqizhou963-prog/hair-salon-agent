@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from backend.database.connection import SessionLocal
 from backend.database.models import Appointment, AppointmentStatus, Stylist, StylistTimeSlot
 from backend.database.appointment_change import AppointmentChangeError, apply_appointment_change
+from backend.agents.trace import new_trace, trace_node
 
 try:
     from langgraph.graph import END, START, StateGraph
@@ -27,11 +28,13 @@ class AppointmentChangeState(TypedDict, total=False):
     awaiting_confirmation: bool
     result: dict[str, Any]
     error: str
+    trace_id: str
+    trace: dict[str, Any]
 
 
 def load_and_validate_proposal(state: AppointmentChangeState) -> AppointmentChangeState:
     if state.get("proposal"):
-        return state
+        return trace_node(state, "load_and_validate_proposal", detail={"proposal_reused": True})
     request = state["request"]
     db = SessionLocal()
     try:
@@ -62,7 +65,7 @@ def load_and_validate_proposal(state: AppointmentChangeState) -> AppointmentChan
             "service": request.get("service") or appointment.service,
             "notes": request.get("notes"),
         }
-        return {**state, "proposal": proposal}
+        return trace_node({**state, "proposal": proposal}, "load_and_validate_proposal", detail={"proposal_ready": True})
     except (ValueError, KeyError) as exc:
         if isinstance(exc, AppointmentChangeError):
             raise
@@ -73,8 +76,8 @@ def load_and_validate_proposal(state: AppointmentChangeState) -> AppointmentChan
 
 def human_confirmation_gate(state: AppointmentChangeState) -> AppointmentChangeState:
     if not state.get("confirmed"):
-        return {**state, "awaiting_confirmation": True}
-    return {**state, "awaiting_confirmation": False}
+        return trace_node({**state, "awaiting_confirmation": True}, "human_confirmation_gate", detail={"awaiting_confirmation": True})
+    return trace_node({**state, "awaiting_confirmation": False}, "human_confirmation_gate", detail={"awaiting_confirmation": False})
 
 
 def _execute_with_actor(state: AppointmentChangeState) -> AppointmentChangeState:
@@ -82,7 +85,7 @@ def _execute_with_actor(state: AppointmentChangeState) -> AppointmentChangeState
     actor = state["db"].query(User).filter(User.id == uuid.UUID(state["actor_id"])).first()
     if not actor:
         raise AppointmentChangeError("执行人不存在")
-    return {**state, "result": apply_appointment_change(state["db"], state["proposal"], actor)}
+    return trace_node({**state, "result": apply_appointment_change(state["db"], state["proposal"], actor)}, "execute_confirmed_change", detail={"write": "appointment_change"})
 
 
 @lru_cache(maxsize=1)
@@ -112,6 +115,7 @@ def run_appointment_change_workflow(
         "actor_id": actor_id,
         "db": db,
         "confirmed": confirmed,
+        **new_trace("appointment_change"),
     }
     if proposal:
         state["proposal"] = proposal
@@ -123,4 +127,4 @@ def run_appointment_change_workflow(
             state = _execute_with_actor(state)
     else:
         state = graph.invoke(state)
-    return {"proposal": state.get("proposal"), "awaiting_confirmation": state.get("awaiting_confirmation", False), "result": state.get("result")}
+    return {"proposal": state.get("proposal"), "awaiting_confirmation": state.get("awaiting_confirmation", False), "result": state.get("result"), "trace_id": state.get("trace_id"), "trace": state.get("trace", {})}

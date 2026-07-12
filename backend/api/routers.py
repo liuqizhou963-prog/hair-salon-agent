@@ -1,4 +1,4 @@
-"""API 路由 — 所有 REST 接口"""
+﻿"""API 路由 — 所有 REST 接口"""
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -188,6 +188,14 @@ async def staff_agent_query(
         result = run_staff_query(request.message, str(current_user.id))
         task.status = AgentTaskStatus.COMPLETED
         task.result_payload = json.dumps(result, ensure_ascii=False)
+        FinanceService.create_audit(
+            db,
+            current_user.id,
+            "agent.staff_query_completed",
+            "agent_task",
+            str(task.id),
+            {"intent": result.get("intent"), "actions": result.get("actions", []), "trace_id": result.get("trace_id")},
+        )
         db.commit()
         return StaffAgentQueryResponse(
             task_id=str(task.id),
@@ -195,6 +203,8 @@ async def staff_agent_query(
             reply=result["reply"],
             actions=result["actions"],
             sources=result["sources"],
+            trace_id=result.get("trace_id"),
+            trace=result.get("trace", {}),
         )
     except Exception as exc:
         db.rollback()
@@ -241,10 +251,18 @@ async def propose_appointment_change(
         workflow_type="appointment_change",
         status=AgentTaskStatus.AWAITING_CONFIRMATION,
         input_payload=json.dumps(request.model_dump(), ensure_ascii=False),
-        result_payload=json.dumps(workflow["proposal"], ensure_ascii=False),
+        result_payload=json.dumps({**workflow["proposal"], "_trace": {"trace_id": workflow.get("trace_id"), "trace": workflow.get("trace", {})}}, ensure_ascii=False),
         awaiting_confirmation=True,
     )
     db.add(task)
+    FinanceService.create_audit(
+        db,
+        current_user.id,
+        "agent.appointment_change_proposed",
+        "agent_task",
+        str(task.id),
+        {"appointment_id": request.appointment_id, "new_slot_id": request.new_slot_id, "trace_id": workflow.get("trace_id")},
+    )
     db.commit()
     db.refresh(task)
     return _agent_task_response(task)
@@ -290,11 +308,25 @@ async def confirm_staff_agent_task(
         raise HTTPException(status_code=404, detail="Agent 任务不存在")
     if not task.awaiting_confirmation or task.status != AgentTaskStatus.AWAITING_CONFIRMATION:
         raise HTTPException(status_code=409, detail="该任务已经处理，不能重复确认")
-    proposal = json.loads(task.result_payload or "{}")
+    stored_payload = json.loads(task.result_payload or "{}")
+    proposal = {key: value for key, value in stored_payload.items() if key != "_trace"}
     if not request.confirmed:
         task.status = AgentTaskStatus.COMPLETED
         task.awaiting_confirmation = False
-        task.result_payload = json.dumps({"confirmed": False, "message": "员工拒绝了预约调整方案", "proposal": proposal}, ensure_ascii=False)
+        task.result_payload = json.dumps({
+            "confirmed": False,
+            "message": "员工拒绝了预约调整方案",
+            "proposal": proposal,
+            "_trace": stored_payload.get("_trace", {}),
+        }, ensure_ascii=False)
+        FinanceService.create_audit(
+            db,
+            current_user.id,
+            "agent.appointment_change_rejected",
+            "agent_task",
+            str(task.id),
+            {"appointment_id": proposal.get("appointment_id")},
+        )
         db.commit()
         db.refresh(task)
         return _agent_task_response(task)
@@ -313,7 +345,22 @@ async def confirm_staff_agent_task(
         raise HTTPException(status_code=409, detail=str(exc))
     task.status = AgentTaskStatus.COMPLETED
     task.awaiting_confirmation = False
-    task.result_payload = json.dumps(workflow["result"], ensure_ascii=False)
+    task.result_payload = json.dumps({
+        **workflow["result"],
+        "_trace": {
+            "trace_id": workflow.get("trace_id"),
+            "trace": workflow.get("trace", {}),
+            "parent_trace": stored_payload.get("_trace", {}).get("trace", {}),
+        },
+    }, ensure_ascii=False)
+    FinanceService.create_audit(
+        db,
+        current_user.id,
+        "agent.appointment_change_confirmed",
+        "agent_task",
+        str(task.id),
+        {"appointment_id": workflow["result"].get("appointment_id"), "trace_id": workflow.get("trace_id")},
+    )
     db.commit()
     db.refresh(task)
     return _agent_task_response(task)
@@ -783,11 +830,20 @@ def _reminder_to_response(r: ReminderLog) -> ReminderResponse:
 @router.post("/retention/scan", response_model=ScanResultResponse)
 async def scan_retention(
     _: None = Depends(verify_admin_token),
-    __: User = Depends(require_staff),
+    current_user: User = Depends(require_staff),
     db: Session = Depends(get_db),
 ):
     """手动触发一次全店扫描，生成待办。定时任务每天也会自动跑。"""
     result = RetentionService.scan_and_generate(db)
+    FinanceService.create_audit(
+        db,
+        current_user.id,
+        "retention.scan_completed",
+        "retention_scan",
+        str(current_user.id),
+        result,
+    )
+    db.commit()
     return ScanResultResponse(**result)
 
 
@@ -823,12 +879,22 @@ async def run_retention_agent(
         result = run_retention_graph(str(current_user.id))
         task.status = AgentTaskStatus.COMPLETED
         task.result_payload = json.dumps(result, ensure_ascii=False)
+        FinanceService.create_audit(
+            db,
+            current_user.id,
+            "agent.retention_completed",
+            "agent_task",
+            str(task.id),
+            {"trace_id": result.get("trace_id"), "recommendation_count": len(result.get("recommendations", []))},
+        )
         db.commit()
         return RetentionAgentResponse(
             task_id=str(task.id),
             status=task.status.value,
             summary=result["summary"],
             recommendations=result["recommendations"],
+            trace_id=result.get("trace_id"),
+            trace=result.get("trace", {}),
         )
     except Exception as exc:
         db.rollback()
@@ -853,10 +919,10 @@ async def mark_reminder_contacted(
 
 @router.post("/retention/reminders/{reminder_id}/dismiss", response_model=dict)
 async def dismiss_reminder(
-    reminder_id: str, _: User = Depends(require_staff), db: Session = Depends(get_db)
+    reminder_id: str, current_user: User = Depends(require_staff), db: Session = Depends(get_db)
 ):
     """忽略某条提醒（不需要联系）。"""
-    ok = RetentionService.dismiss(db, reminder_id)
+    ok = RetentionService.dismiss(db, reminder_id, actor=current_user)
     if not ok:
         raise HTTPException(status_code=404, detail="提醒不存在")
     return {"success": True, "message": "已忽略"}

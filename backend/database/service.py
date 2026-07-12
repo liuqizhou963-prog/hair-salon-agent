@@ -1,4 +1,4 @@
-﻿"""数据库业务服务层"""
+"""数据库业务服务层"""
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
@@ -174,65 +174,84 @@ class TimeSlotService:
     
     @staticmethod
     def book_time_slot(db: Session, slot_id: str, appointment_id: str) -> bool:
-        """\u9884\u8ba2\u65f6\u95f4\u69fd"""
-        logger.info(f"\ud83d\udcc5 \u9884\u8ba2\u65f6\u95f4\u69fd: {slot_id}")
-        
-        slot = db.query(StylistTimeSlot).filter(
-            StylistTimeSlot.id == uuid.UUID(slot_id)
-        ).first()
-        
-        if slot and not slot.is_booked:
-            slot.is_booked = True
-            slot.booked_by_appointment_id = uuid.UUID(appointment_id)
+        """Atomically claim an available slot for an existing appointment."""
+        logger.info(f"Book time slot: {slot_id}")
+        slot_uuid = uuid.UUID(slot_id)
+        appointment_uuid = uuid.UUID(appointment_id)
+        updated = db.query(StylistTimeSlot).filter(
+            StylistTimeSlot.id == slot_uuid,
+            StylistTimeSlot.is_booked.is_(False),
+        ).update(
+            {
+                StylistTimeSlot.is_booked: True,
+                StylistTimeSlot.booked_by_appointment_id: appointment_uuid,
+            },
+            synchronize_session=False,
+        )
+        if updated == 1:
             db.commit()
-            logger.info("\u2705 \u65f6\u95f4\u69fd\u9884\u8ba2\u6210\u529f")
+            logger.info("Time slot booked successfully")
             return True
-        
-        logger.warning("\u26a0\ufe0f \u65f6\u95f4\u69fd\u5df2\u88ab\u9884\u8ba2\u6216\u4e0d\u5b58\u5728")
+
+        db.rollback()
+        logger.warning("Time slot was already booked or does not exist")
         return False
 
 class AppointmentService:
     """\u9884\u7ea6\u670d\u52a1"""
     
     @staticmethod
-    def create_appointment(db: Session, customer_id: str, stylist_id: str, 
+    def create_appointment(db: Session, customer_id: str, stylist_id: str,
                           slot_id: str, service: str, notes: str = None) -> Optional[Appointment]:
-        """\u521b\u5efa\u9884\u7ea6"""
-        logger.info(f"\ud83d\udcc5 \u521b\u5efa\u9884\u7ea6: {customer_id} -> {stylist_id}")
-        
-        # \u83b7\u53d6\u65f6\u95f4\u69fd
+        """Create an appointment with an atomic slot claim."""
+        logger.info(f"Create appointment: {customer_id} -> {stylist_id}")
+
+        slot_uuid = uuid.UUID(slot_id)
+        stylist_uuid = uuid.UUID(stylist_id)
         slot = db.query(StylistTimeSlot).filter(
-            StylistTimeSlot.id == uuid.UUID(slot_id)
+            StylistTimeSlot.id == slot_uuid,
+            StylistTimeSlot.stylist_id == stylist_uuid,
         ).first()
-        
         if not slot or slot.is_booked:
-            logger.error("\u274c \u65f6\u95f4\u69fd\u4e0d\u53ef\u7528")
+            logger.error("Slot is not available")
             return None
-        
-        # \u521b\u5efa\u9884\u7ea6
+
+        slot_date, slot_time = slot.date, slot.time
+        appointment_id = uuid.uuid4()
+        claimed = db.query(StylistTimeSlot).filter(
+            StylistTimeSlot.id == slot_uuid,
+            StylistTimeSlot.stylist_id == stylist_uuid,
+            StylistTimeSlot.is_booked.is_(False),
+        ).update(
+            {StylistTimeSlot.is_booked: True},
+            synchronize_session=False,
+        )
+        if claimed != 1:
+            db.rollback()
+            logger.warning("Slot was claimed by another request")
+            return None
+
         appointment = Appointment(
-            id=uuid.uuid4(),
+            id=appointment_id,
             customer_id=uuid.UUID(customer_id),
-            stylist_id=uuid.UUID(stylist_id),
-            time_slot_id=uuid.UUID(slot_id),
+            stylist_id=stylist_uuid,
+            time_slot_id=slot_uuid,
             service=service,
             notes=notes,
             status=AppointmentStatus.CONFIRMED,
-            appointment_datetime=datetime.strptime(f"{slot.date} {slot.time}", "%Y-%m-%d %H:%M")
+            appointment_datetime=datetime.strptime(f"{slot_date} {slot_time}", "%Y-%m-%d %H:%M"),
         )
         db.add(appointment)
         db.flush()
-        
-        # \u66f4\u65b0\u65f6\u95f4\u69fd\u4e3abooked
+
+        # The appointment now exists, so the foreign-key reference is safe.
         slot.is_booked = True
         slot.booked_by_appointment_id = appointment.id
-        
+
         db.commit()
         db.refresh(appointment)
-        
-        logger.info(f"\u2705 \u9884\u7ea6\u521b\u5efa\u6210\u529f: {appointment.id}")
+        logger.info(f"Appointment created successfully: {appointment.id}")
         return appointment
-    
     @staticmethod
     def get_appointments_by_customer(db: Session, customer_id: str) -> List[Appointment]:
         """\u83b7\u53d6\u5ba2\u6237\u7684\u9884\u7ea6"""

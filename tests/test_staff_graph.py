@@ -55,6 +55,10 @@ def test_staff_readonly_graph_queries_schedule_and_records_trace():
     assert "tool:get_salon_schedule" in body["actions"]
     assert "database:staff_schedule" in body["sources"]
     assert body["task_id"]
+    assert body["trace_id"] == body["trace"]["trace_id"]
+    assert [step["node"] for step in body["trace"]["steps"]] == [
+        "classify_request", "query_schedule", "format_response"
+    ]
 
     task = client.get(
         f"/api/staff/agent/tasks/{body['task_id']}", headers=headers
@@ -62,6 +66,7 @@ def test_staff_readonly_graph_queries_schedule_and_records_trace():
     assert task.status_code == 200, task.text
     assert task.json()["workflow_type"] == "staff_readonly_query"
     assert task.json()["result_payload"]["intent"] == "schedule"
+    assert task.json()["result_payload"]["trace_id"] == body["trace_id"]
 
 
 def test_customer_cannot_use_staff_readonly_graph():
