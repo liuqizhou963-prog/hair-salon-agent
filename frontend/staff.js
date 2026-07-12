@@ -186,8 +186,8 @@
   }
 
   function assistantMarkup() {
-    const messages = state.assistantMessages.length ? state.assistantMessages.map((item) => `<div class="message ${item.role}">${esc(item.content)}${item.actions?.length ? `<small>调用：${esc(item.actions.join("、"))}</small>` : ""}</div>`).join("") : `<div class="empty">可以试试：今天有哪些预约？、李雷最近有没有预约？、护理后多久可以洗头？</div>`;
-    return `<section class="panel"><div class="panel-header"><h2>员工查询助手</h2><span>只读查询</span></div><p class="helper-note" style="margin:14px 18px 0">助手只能通过受控工具查询预约、客户、会员和护理知识；第 8 步会进一步把这个过程拆成可追踪的 LangGraph 节点。</p><div class="message-list" id="assistant-messages">${messages}</div><form class="assistant-form" id="assistant-form"><label class="sr-only" for="assistant-input">输入员工问题</label><input id="assistant-input" name="message" required placeholder="输入你想查询的门店信息" autocomplete="off" /><button class="btn" type="submit">查询</button></form></section>`;
+    const messages = state.assistantMessages.length ? state.assistantMessages.map((item) => `<div class="message ${item.role}">${esc(item.content)}</div>`).join("") : `<div class="empty">可以试试：今天有哪些预约？、李雷最近有没有预约？、护理后多久可以洗头？</div>`;
+    return `<section class="panel"><div class="panel-header"><h2>员工查询助手</h2><span>只读查询</span></div><div class="message-list" id="assistant-messages">${messages}</div><form class="assistant-form" id="assistant-form"><label class="sr-only" for="assistant-input">输入员工问题</label><input id="assistant-input" name="message" required placeholder="输入你想查询的门店信息" autocomplete="off" /><button class="btn" type="submit">查询</button></form></section>`;
   }
 
   async function loadData() {
@@ -251,7 +251,7 @@
     renderShell();
     try {
       const result = await api("/api/staff/agent/query", { method: "POST", body: JSON.stringify({ message }) });
-      state.assistantMessages.push({ role: "assistant", content: result.reply || "没有得到可展示的回答。", actions: [...(result.actions || []), ...(result.sources || []).map((source) => `来源:${source}`)] });
+      state.assistantMessages.push({ role: "assistant", content: result.reply || "没有得到可展示的回答。" });
     } catch (error) {
       if (error.code === "AUTH_EXPIRED") return;
       state.assistantMessages.push({ role: "assistant", content: `查询失败：${error.message}` });
