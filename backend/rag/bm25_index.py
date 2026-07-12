@@ -20,6 +20,15 @@ class _BM25KnowledgeIndex:
         self._docs: List[Dict] = []
         self._ready = False
 
+    @staticmethod
+    def _tokenize(text: str, jieba) -> List[str]:
+        """过滤中文单字噪声，避免常见的“发”“染”等词压过主题词。"""
+        return [
+            token.strip()
+            for token in jieba.cut_for_search(text)
+            if len(token.strip()) > 1 or token.strip().isdigit()
+        ]
+
     def _ensure_built(self) -> None:
         if self._ready:
             return
@@ -31,12 +40,21 @@ class _BM25KnowledgeIndex:
         corpus_tokens = []
         for item in raw_docs:
             meta = item["metadata"]
-            text = f"{meta.get('title', '')} {meta.get('category', '')} {item['content']}"
-            corpus_tokens.append(list(jieba.cut_for_search(text)))
+            # 标题和关键词代表文档主题，适度重复可让明确术语优先于泛化正文命中。
+            text = " ".join([
+                meta.get("title", ""),
+                meta.get("title", ""),
+                meta.get("category", ""),
+                meta.get("keywords", ""),
+                meta.get("keywords", ""),
+                item["content"],
+            ])
+            corpus_tokens.append(self._tokenize(text, jieba))
             self._docs.append({
                 "title": meta.get("title", "护理知识"),
                 "category": meta.get("category", ""),
                 "content": item["content"],
+                "keywords": meta.get("keywords", ""),
                 "metadata": meta,
             })
 
@@ -53,7 +71,7 @@ class _BM25KnowledgeIndex:
 
         import jieba
 
-        query_tokens = list(jieba.cut_for_search(query))
+        query_tokens = self._tokenize(query, jieba)
         scores = self._bm25.get_scores(query_tokens)
 
         ranked = sorted(

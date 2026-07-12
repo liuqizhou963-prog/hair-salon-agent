@@ -1,7 +1,9 @@
+import pytest
 from fastapi.testclient import TestClient
 
 from backend.main import app
 from backend.agents.staff_graph import build_staff_query_graph
+from backend.agents.staff_graph import classify_request
 from backend.database.connection import SessionLocal
 from backend.database.models import (
     AgentTaskState,
@@ -93,6 +95,38 @@ def test_staff_graph_uses_rag_for_haircare_question():
     body = response.json()
     assert "tool:search_knowledge" in body["actions"]
     assert any(source.startswith("rag:") for source in body["sources"])
+
+
+@pytest.mark.parametrize(
+    ("question", "expected_title"),
+    [
+        ("7度底色想做冷棕怎么配？", "七度底色做冷棕的判断思路"),
+        ("染膏和双氧怎么配比？", "染膏和氧化乳配比记录方法"),
+        ("发根染和发尾染有什么区别？", "为什么发根反应通常更快"),
+        ("漂到橙黄色应该怎么校色？", "橙黄色底色如何校色"),
+        ("染发需要加热多久？", "加热条件与禁止加热情况"),
+        ("受损发能不能染？", "受损发的染发处理"),
+        ("染发前要做过敏测试吗？", "染发前过敏测试"),
+    ],
+)
+def test_staff_graph_routes_apprentice_hair_color_questions_to_rag(
+    question, expected_title
+):
+    state = classify_request({"message": question})
+
+    assert state["intent"] == "knowledge"
+
+    response = client.post(
+        "/api/staff/agent/query",
+        headers=_login_staff(),
+        json={"message": question},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "tool:search_knowledge" in body["actions"]
+    assert body["sources"][0] == f"rag:{expected_title}"
+    assert expected_title in body["reply"]
 
 
 def test_staff_graph_queries_customer_membership_and_wallet_from_database():

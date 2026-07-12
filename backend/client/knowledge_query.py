@@ -47,12 +47,17 @@ class RAGRetriever:
             title = entry["title"]
             content = entry["content"]
             category = entry["category"]
+            keywords = entry.get("keywords", "")
 
             score = 0
             if query_lower in title.lower():
                 score += 10
             if query_lower in content.lower():
                 score += 5
+            # BM25/向量不可用时，仍然利用条目维护的同义词和业务术语。
+            for keyword in keywords.lower().split():
+                if keyword and keyword in query_lower:
+                    score += 2
             # 分类关键词命中
             if category and category[:2] in query:
                 score += 3

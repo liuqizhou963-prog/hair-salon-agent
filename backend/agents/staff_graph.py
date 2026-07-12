@@ -103,7 +103,13 @@ def classify_request(state: StaffQueryState) -> StaffQueryState:
         intent = "membership"
     elif any(word in compact for word in ("留存", "流失", "复购", "跟进", "运营提醒")):
         intent = "retention"
-    elif any(word in compact for word in ("护理", "头发", "洗发", "护发", "头皮", "烫发后", "染发后")):
+    elif any(word in compact for word in (
+        "护理", "头发", "洗发", "护发", "头皮", "烫发后", "染发后",
+        "染膏", "双氧", "氧化乳", "双氧奶", "底色", "目标色", "配比",
+        "用量", "校色", "补根", "补色", "漂粉", "漂发", "加热",
+        "冷棕", "灰棕", "发根", "发中", "发尾", "褪色", "色度",
+        "染前", "过敏测试", "发束测试", "白发覆盖", "多孔发", "受损发",
+    )):
         intent = "knowledge"
     elif _is_schedule_request(compact, bool(phone_or_name)):
         intent = "schedule"
