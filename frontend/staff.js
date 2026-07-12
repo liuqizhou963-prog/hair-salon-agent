@@ -57,9 +57,12 @@
     try { body = await response.json(); } catch (_) { body = null; }
     if (response.status === 401) {
       state.token = "";
+      state.user = null;
       localStorage.removeItem(TOKEN_KEY);
       renderLogin("登录已失效，请重新登录");
-      throw new Error("登录已失效");
+      const error = new Error("登录已失效，请重新登录");
+      error.code = "AUTH_EXPIRED";
+      throw error;
     }
     if (!response.ok) throw new Error(body?.detail || `请求失败（${response.status}）`);
     return body;
@@ -120,7 +123,14 @@
   function viewDescription(view) { return ({ dashboard: "快速掌握今天的门店运营状态。", schedule: "按发型师查看当天预约和客户需求。", customers: "查找客户基础资料、会员等级和积分。", finance: "处理客户退款申请，所有决定都会留下记录。", retention: "按优先级跟进需要再次触达的客户。", audit: "查看关键业务动作的操作者和时间。", assistant: "用自然语言查询真实业务数据和门店知识。" })[view] || ""; }
 
   function flattenSchedule() { return state.data.schedule.flatMap((group) => (group.appointments || []).map((item) => ({ ...item, stylist_name: group.stylist_name }))); }
-  function metric(label, value, note, icon) { return `<article class="metric"><div class="metric-label"><span>${label}</span><b aria-hidden="true">${icon}</b></div><strong class="mono">${value}</strong><small>${note}</small></article>`; }
+  function metric(label, value, note, icon, view = "") {
+    const tag = view ? "button" : "article";
+    const className = view ? "metric metric-link" : "metric";
+    const attributes = view
+      ? ` type="button" data-view="${esc(view)}" aria-label="打开${esc(label)}页面"`
+      : "";
+    return `<${tag} class="${className}"${attributes}><div class="metric-label"><span>${esc(label)}</span><b aria-hidden="true">${esc(icon)}</b></div><strong class="mono">${esc(value)}</strong><small>${esc(note)}${view ? " · 点击查看" : ""}</small></${tag}>`;
+  }
 
   function viewMarkup(view) {
     return `<section class="view active" data-view-panel="${view}">${({ dashboard: dashboardMarkup, schedule: scheduleMarkup, customers: customersMarkup, finance: financeMarkup, retention: retentionMarkup, audit: auditMarkup, assistant: assistantMarkup })[view]()}</section>`;
@@ -129,7 +139,7 @@
   function dashboardMarkup() {
     const appointments = flattenSchedule();
     const pendingRefunds = state.data.refunds.filter((item) => item.status === "pending").length;
-    return `<div class="metric-grid">${metric("今日预约", appointments.length, "全店发型师合计", "◷")}${metric("会员客户", state.data.members.length, "已建立会员资料", "◎")}${metric("待处理退款", pendingRefunds, pendingRefunds ? "需要员工审核" : "当前没有待审核申请", "￥")}${metric("待跟进客户", state.data.reminders.length, "留存规则生成的待办", "!")}</div>
+    return `<div class="metric-grid">${metric("今日预约", appointments.length, "全店发型师合计", "◷", "schedule")}${metric("会员客户", state.data.members.length, "已建立会员资料", "◎", "customers")}${metric("待处理退款", pendingRefunds, pendingRefunds ? "需要员工审核" : "当前没有待审核申请", "￥", "finance")}${metric("待跟进客户", state.data.reminders.length, "留存规则生成的待办", "!", "retention")}</div>
       <div class="dashboard-grid"><section class="panel"><div class="panel-header"><h2>今日预约</h2><span>${appointments.length ? `共 ${appointments.length} 条` : "暂无预约"}</span></div>${scheduleTable(appointments.slice(0, 8))}<div class="panel-body"><button class="btn secondary small" type="button" data-view="schedule">查看全部预约</button></div></section><section class="panel"><div class="panel-header"><h2>优先跟进</h2><span>按风险排序</span></div><div class="panel-body">${reminderList(state.data.reminders.slice(0, 4))}<div style="margin-top:12px"><button class="btn secondary small" type="button" data-view="retention">打开留存提醒</button></div></div></section></div>`;
   }
 
@@ -242,7 +252,10 @@
     try {
       const result = await api("/api/staff/agent/query", { method: "POST", body: JSON.stringify({ message }) });
       state.assistantMessages.push({ role: "assistant", content: result.reply || "没有得到可展示的回答。", actions: [...(result.actions || []), ...(result.sources || []).map((source) => `来源:${source}`)] });
-    } catch (error) { state.assistantMessages.push({ role: "assistant", content: `查询失败：${error.message}` }); }
+    } catch (error) {
+      if (error.code === "AUTH_EXPIRED") return;
+      state.assistantMessages.push({ role: "assistant", content: `查询失败：${error.message}` });
+    }
     renderShell();
     document.querySelector("#assistant-input")?.focus();
   }

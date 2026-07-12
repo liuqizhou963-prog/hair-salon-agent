@@ -94,6 +94,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible {
 @keyframes view-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 .metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 20px; }
 .metric { min-height: 122px; padding: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 4px 14px rgba(31,58,57,.04); }
+.metric-link { display: block; width: 100%; color: inherit; font: inherit; text-align: left; appearance: none; transition: border-color .18s, box-shadow .18s, transform .18s; }
+.metric-link:hover { border-color: rgba(31,116,107,.42); box-shadow: 0 8px 20px rgba(31,58,57,.1); transform: translateY(-1px); }
+.metric-link:active { transform: translateY(0); }
+.metric-link:focus-visible { outline: 3px solid rgba(31,116,107,.24); outline-offset: 3px; }
 .metric-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 13px; }
 .metric-label b { width: 28px; height: 28px; display: grid; place-items: center; color: var(--brand); background: var(--surface-soft); border-radius: 6px; font-size: 13px; }
 .metric strong { display: block; margin-top: 12px; color: var(--ink); font-size: 28px; line-height: 1; }
