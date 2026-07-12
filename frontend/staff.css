@@ -127,6 +127,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .reminder-item strong { display: block; font-size: 13px; }
 .reminder-item p { margin: 7px 0 10px; color: var(--muted); font-size: 12px; line-height: 1.55; }
 .reminder-meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--muted); font-size: 11px; }
+.reminder-owner { display: flex; flex: 1; min-width: 0; flex-wrap: wrap; gap: 4px 10px; }
+.reminder-owner span:first-child { color: var(--brand-dark); font-weight: 700; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .toolbar-left, .toolbar-right { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
 .search-input { width: min(280px, 100%); min-height: 40px; background: var(--surface); }
