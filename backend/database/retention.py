@@ -144,7 +144,7 @@ class RetentionService:
     # ---------- 单客户判定 ----------
 
     @classmethod
-    def _evaluate_customer(cls, db: Session, customer: User) -> Optional[dict]:
+    def evaluate_customer(cls, db: Session, customer: User) -> Optional[dict]:
         """对单个客户跑三条规则，返回命中的最高优先级待办（或 None）。
 
         同一客户一次扫描只生成一条最重要的提醒，避免刷屏。
@@ -162,6 +162,11 @@ class RetentionService:
                         "reason": f"{days_until} 天后生日" if days_until else "今天生日",
                         "message": cls._msg_birthday(name, days_until),
                         "reference_date": now,
+                        "evidence": {
+                            "birthday": customer.birthday,
+                            "days_until_birthday": days_until,
+                            "lookahead_days": BIRTHDAY_LOOKAHEAD_DAYS,
+                        },
                     }
 
         # --- 复购 / 流失：都依赖到店节奏 ---
@@ -182,6 +187,12 @@ class RetentionService:
                 "reason": f"距上次到店 {days_since} 天，{basis}，已达流失风险",
                 "message": cls._msg_churn(name, days_since),
                 "reference_date": customer.last_visit,
+                "evidence": {
+                    "days_since_last_visit": days_since,
+                    "cycle_days": cycle,
+                    "threshold_days": round(cycle * CHURN_MULTIPLIER),
+                    "cycle_basis": basis,
+                },
             }
 
         if days_since >= cycle * REPURCHASE_BUFFER:
@@ -192,9 +203,19 @@ class RetentionService:
                 "reason": f"距上次到店 {days_since} 天，{basis}，该回店了",
                 "message": cls._msg_repurchase(name, last_service, days_since),
                 "reference_date": customer.last_visit,
+                "evidence": {
+                    "days_since_last_visit": days_since,
+                    "cycle_days": cycle,
+                    "threshold_days": round(cycle * REPURCHASE_BUFFER),
+                    "cycle_basis": basis,
+                },
             }
 
         return None
+
+    @classmethod
+    def _evaluate_customer(cls, db: Session, customer: User) -> Optional[dict]:
+        return cls.evaluate_customer(db, customer)
 
     @staticmethod
     def _days_until_birthday(birthday: str, now: datetime) -> Optional[int]:

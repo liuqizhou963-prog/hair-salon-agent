@@ -447,6 +447,7 @@ class ReminderResponse(BaseModel):
     status: str
     priority: int
     reason: str
+    evidence: Optional[str] = None
     suggested_message: str
     created_at: str
 

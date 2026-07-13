@@ -85,7 +85,7 @@ class LangChainAgent:
         if not self.enabled or not self.llm:
             if _LANGCHAIN_IMPORT_ERROR:
                 logger.warning(f"LangChain unavailable, fallback to rule agent: {_LANGCHAIN_IMPORT_ERROR}")
-            result = chat_agent.handle_message(message=message, phone=phone, name=name)
+            result = self._run_rule_fallback(message=message, phone=phone, name=name, role=role)
             result["actions"] = ["rule_agent_fallback", *result.get("actions", [])]
             return result
 
@@ -97,9 +97,22 @@ class LangChainAgent:
             return self._run_agent(message=message, phone=phone, name=name, role=role)
         except Exception as exc:
             logger.warning(f"LangChain agent failed, fallback to rule agent: {exc}")
-            result = chat_agent.handle_message(message=message, phone=phone, name=name)
+            result = self._run_rule_fallback(message=message, phone=phone, name=name, role=role)
             result["actions"] = ["rule_agent_fallback", *result.get("actions", [])]
             return result
+
+    @staticmethod
+    def _run_rule_fallback(
+        message: str,
+        phone: str,
+        name: Optional[str],
+        role: str,
+    ) -> Dict[str, Any]:
+        if role == "staff":
+            from backend.agents.staff_graph import run_staff_query
+
+            return run_staff_query(message, requester_id=phone)
+        return chat_agent.handle_message(message=message, phone=phone, name=name)
 
     def _build_tools(self, phone: str, name: Optional[str], role: str) -> List:
         if role == "staff":
@@ -134,10 +147,20 @@ class LangChainAgent:
                 reply = msg.content if isinstance(msg.content, str) else reply
 
         actions = [f"langchain_agent:{role}", *called_tools]
+        source_map = {
+            "get_salon_schedule": "database:staff_schedule",
+            "get_birthday_members": "database:members",
+            "lookup_customer": "database:customers",
+            "query_membership": "database:members",
+            "get_retention_reminders": "database:reminder_logs",
+            "search_knowledge": "rag:haircare_knowledge",
+        }
+        sources = list(dict.fromkeys(source_map[name] for name in called_tools if name in source_map))
 
         return {
             "reply": reply,
             "actions": actions,
+            "sources": sources,
         }
 
     def _maybe_direct_customer_reply(self, message: str, role: str) -> Optional[Dict[str, Any]]:

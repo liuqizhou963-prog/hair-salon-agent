@@ -10,6 +10,9 @@ from backend.database.models import (
     AgentTaskStatus,
     Member,
     Notification,
+    ReminderLog,
+    ReminderStatus,
+    ReminderType,
     User,
     UserRole,
     WalletAccount,
@@ -56,7 +59,7 @@ def test_retention_graph_segments_balance_and_personalized_churn():
     assert {"balance_customer", "churn_risk"}.issubset(segments)
     assert "membership_expiring" not in segments
     assert body["analysis_basis"]["scanned_customer_count"] > 0
-    assert body["analysis_basis"]["rules"]
+    assert {rule["segment"] for rule in body["analysis_basis"]["rules"]} >= {"churn_risk", "birthday", "repurchase", "balance_customer"}
     assert body["task_id"]
 
     db = SessionLocal()
@@ -71,6 +74,38 @@ def test_retention_graph_segments_balance_and_personalized_churn():
         assert db.query(Notification).filter(Notification.user_id == customer_id).count() == 0
     finally:
         db.close()
+
+
+def test_retention_agent_includes_birthday_and_repurchase_candidates():
+    now = datetime.now()
+    db = SessionLocal()
+    try:
+        birthday_customer = User(
+            name="生日扫描客户",
+            phone="13970000009",
+            role=UserRole.CUSTOMER,
+            birthday=(now + timedelta(days=3)).strftime("%m-%d"),
+        )
+        repurchase_customer = User(
+            name="复购扫描客户",
+            phone="13970000010",
+            role=UserRole.CUSTOMER,
+            last_visit=now - timedelta(days=60),
+        )
+        db.add_all([birthday_customer, repurchase_customer])
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.post("/api/retention/agent/run", headers=_staff_headers())
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    segments = {item["segment"] for item in body["recommendations"]}
+    assert "birthday" in segments
+    assert "repurchase" in segments
+    assert body["summary"]["birthday"] >= 1
+    assert body["summary"]["repurchase"] >= 1
 
 
 def test_contacted_retention_reminder_creates_customer_notification():
@@ -122,6 +157,35 @@ def test_customer_cannot_run_retention_agent():
     )
 
     assert response.status_code == 403
+
+
+def test_existing_birthday_reminder_returns_explainable_evidence():
+    birthday = (datetime.now() + timedelta(days=2)).strftime("%m-%d")
+    db = SessionLocal()
+    try:
+        customer = User(name="生日证据客户", phone="13970000991", role=UserRole.CUSTOMER, birthday=birthday)
+        db.add(customer)
+        db.flush()
+        db.add(ReminderLog(
+            customer_id=customer.id,
+            reminder_type=ReminderType.BIRTHDAY,
+            status=ReminderStatus.PENDING,
+            priority=20,
+            reason="2 天后生日",
+            suggested_message="提前祝您生日快乐",
+            reference_date=datetime.now(),
+        ))
+        db.commit()
+        customer_id = str(customer.id)
+    finally:
+        db.close()
+
+    response = client.get("/api/retention/reminders", headers=_staff_headers())
+    assert response.status_code == 200, response.text
+    reminder = next(item for item in response.json() if item["customer_id"] == customer_id)
+    assert reminder["evidence"] is not None
+    assert birthday in reminder["evidence"]
+    assert "还有 2 天" in reminder["evidence"]
 
 
 def test_retention_agent_failure_is_persisted_without_breaking_normal_api(monkeypatch):

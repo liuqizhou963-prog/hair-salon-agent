@@ -1,4 +1,4 @@
-﻿"""API 路由 — 所有 REST 接口"""
+"""API 路由 — 所有 REST 接口"""
 
 import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
@@ -13,7 +13,12 @@ from backend.config import settings
 from backend.database.service import (
     UserService, StylistService, TimeSlotService, AppointmentService, MemberService,
 )
-from backend.database.retention import RetentionService
+from backend.database.retention import (
+    BIRTHDAY_LOOKAHEAD_DAYS,
+    CHURN_MULTIPLIER,
+    REPURCHASE_BUFFER,
+    RetentionService,
+)
 from backend.database.finance import FinanceError, FinanceService, amount_to_cents, cents_to_amount
 from backend.database.appointment_change import AppointmentChangeError
 from backend.database.init_db import init_database, seed_sample_data
@@ -247,7 +252,23 @@ async def staff_agent_query(
     db.commit()
     db.refresh(task)
     try:
-        result = run_staff_query(request.message, str(current_user.id))
+        result = langchain_agent.handle_message(
+            message=request.message,
+            phone=current_user.phone or "",
+            name=current_user.name,
+            role="staff",
+        )
+        result.setdefault("actions", [])
+        result.setdefault("sources", [])
+        result.setdefault("trace", {})
+        result.setdefault("trace_id", None)
+        if not result.get("trace_id"):
+            result["trace_id"] = str(task.id)
+            result["trace"] = {
+                "trace_id": result["trace_id"],
+                "workflow": "staff_llm_query",
+                "steps": [{"node": "langchain_tool_call", "status": "completed"}],
+            }
         task.status = AgentTaskStatus.COMPLETED
         task.result_payload = json.dumps(result, ensure_ascii=False)
         FinanceService.create_audit(
@@ -1421,7 +1442,30 @@ async def get_birthday_campaigns(
 
 # ===== 客户维护 / 留存工作台 =====
 
-def _reminder_to_response(r: ReminderLog) -> ReminderResponse:
+def _reminder_evidence(r: ReminderLog, db: Session) -> str | None:
+    customer = r.customer
+    if not customer:
+        return None
+
+    if r.reminder_type.value == "birthday" and customer.birthday:
+        days_until = RetentionService._days_until_birthday(customer.birthday, datetime.now())
+        if days_until is not None:
+            return f"生日 {customer.birthday}，还有 {days_until} 天（提前 {BIRTHDAY_LOOKAHEAD_DAYS} 天提醒）"
+        return f"生日 {customer.birthday}，已进入生日提醒窗口"
+
+    if r.reminder_type.value in {"repurchase", "churn_risk"} and r.reference_date:
+        days_since = max(0, (datetime.now() - r.reference_date).days)
+        cycle, basis = RetentionService.compute_cycle_days(db, customer)
+        if r.reminder_type.value == "churn_risk":
+            threshold = round(cycle * CHURN_MULTIPLIER)
+            return f"{basis}；当前距上次到店 {days_since} 天，流失阈值 {threshold} 天"
+        threshold = round(cycle * REPURCHASE_BUFFER)
+        return f"{basis}；当前距上次到店 {days_since} 天，复购提醒阈值 {threshold} 天"
+
+    return None
+
+
+def _reminder_to_response(r: ReminderLog, db: Session) -> ReminderResponse:
     return ReminderResponse(
         reminder_id=str(r.id),
         customer_id=str(r.customer_id),
@@ -1433,6 +1477,7 @@ def _reminder_to_response(r: ReminderLog) -> ReminderResponse:
         status=r.status.value,
         priority=r.priority,
         reason=r.reason or "",
+        evidence=_reminder_evidence(r, db),
         suggested_message=r.suggested_message or "",
         created_at=r.created_at.isoformat() if r.created_at else "",
     )
@@ -1467,7 +1512,7 @@ async def get_reminders(
 ):
     """发型师工作台清单：该联系谁、为什么、话术，按优先级排序。"""
     reminders = RetentionService.list_reminders(db, stylist_id=stylist_id, status=status)
-    return [_reminder_to_response(r) for r in reminders]
+    return [_reminder_to_response(r, db) for r in reminders]
 
 
 @router.post("/retention/agent/run", response_model=RetentionAgentResponse)

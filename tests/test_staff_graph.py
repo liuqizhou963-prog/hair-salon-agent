@@ -201,15 +201,39 @@ def test_staff_graph_understands_natural_date_phrases():
 
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["actions"][0] == "intent:schedule"
+    assert "intent:schedule" in body["actions"]
     assert "database:staff_schedule" in body["sources"]
 
 
+def test_staff_endpoint_uses_model_agent(monkeypatch):
+    observed = {}
+
+    def fake_staff_agent(**kwargs):
+        observed.update(kwargs)
+        return {
+            "reply": "已通过模型工具查询到预约。",
+            "actions": ["langchain_agent:staff", "get_salon_schedule"],
+            "sources": ["database:staff_schedule"],
+        }
+
+    monkeypatch.setattr("backend.api.routers.langchain_agent.handle_message", fake_staff_agent)
+    response = client.post(
+        "/api/staff/agent/query",
+        headers=_login_staff(),
+        json={"message": "帮我看看明天的预约，并告诉我最忙的发型师"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["reply"] == "已通过模型工具查询到预约。"
+    assert observed["role"] == "staff"
+    assert observed["message"] == "帮我看看明天的预约，并告诉我最忙的发型师"
+
+
 def test_staff_agent_failure_is_persisted_without_breaking_normal_api(monkeypatch):
-    def fail_staff_query(message, requester_id):
+    def fail_staff_agent(**kwargs):
         raise RuntimeError("模拟查询失败")
 
-    monkeypatch.setattr("backend.api.routers.run_staff_query", fail_staff_query)
+    monkeypatch.setattr("backend.api.routers.langchain_agent.handle_message", fail_staff_agent)
     headers = _login_staff()
     response = client.post(
         "/api/staff/agent/query",

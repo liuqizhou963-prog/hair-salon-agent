@@ -20,6 +20,8 @@ from loguru import logger
 from backend.client.appointment import client_appointment_service
 from backend.client.knowledge_query import rag_retriever
 from backend.database.connection import SessionLocal
+from backend.database.models import Member, User, UserRole
+from backend.database.retention import RetentionService
 from backend.database.service import AppointmentService, MemberService
 from backend.staff.schedule import staff_schedule_service
 
@@ -109,7 +111,7 @@ def build_customer_tools(phone: str, name: Optional[str] = None) -> List:
 # ==================== B 端店员工具 ====================
 
 def build_staff_tools() -> List:
-    """构建店员侧工具集：日程、生日营销、客户查询 + 共享的知识检索。"""
+    """构建店员侧只读工具集，供模型自主选择查询路径。"""
 
     @tool
     def search_knowledge(query: str) -> str:
@@ -136,10 +138,69 @@ def build_staff_tools() -> List:
         return _dump({"count": len(data), "members": data})
 
     @tool
-    def lookup_customer(phone: str) -> str:
-        """按手机号查询某位顾客的预约历史，用于店员接待时了解顾客情况。"""
-        appts = client_appointment_service.get_customer_appointments(phone)
-        return _dump({"phone": phone, "found": bool(appts), "appointments": appts})
+    def lookup_customer(identifier: str) -> str:
+        """按顾客姓名或手机号查询预约历史；姓名重复时不要猜，先向店员确认。"""
+        db = SessionLocal()
+        try:
+            query = db.query(User).filter(User.role == UserRole.CUSTOMER)
+            customer = query.filter(User.phone == identifier).first()
+            if not customer:
+                customer = query.filter(User.name == identifier).first()
+            if not customer:
+                return _dump({"found": False, "hint": "没有找到该顾客，请提供准确姓名或手机号。"})
+            appointments = client_appointment_service.get_customer_appointments(customer.phone)
+            return _dump({
+                "found": True,
+                "customer": {"name": customer.name, "phone": customer.phone, "birthday": customer.birthday},
+                "appointments": appointments,
+            })
+        finally:
+            db.close()
 
-    return [search_knowledge, get_salon_schedule, get_birthday_members, lookup_customer]
+    @tool
+    def query_membership(identifier: Optional[str] = None) -> str:
+        """查询会员等级、积分和余额；identifier 可填姓名或手机号，不填则返回会员概览。"""
+        db = SessionLocal()
+        try:
+            query = db.query(Member).join(User).filter(User.role == UserRole.CUSTOMER)
+            if identifier:
+                query = query.filter((User.phone == identifier) | (User.name == identifier))
+            members = query.limit(50).all()
+            data = [{
+                "name": member.user.name,
+                "phone": member.user.phone,
+                "level": member.level.value,
+                "points": member.points,
+                "expires_at": member.expires_at,
+                "balance": round((member.user.wallet_account.balance_cents if member.user.wallet_account else 0) / 100, 2),
+            } for member in members]
+            return _dump({"found": bool(data), "members": data})
+        finally:
+            db.close()
+
+    @tool
+    def get_retention_reminders() -> str:
+        """查询当前待跟进的留存提醒，返回客户、原因、优先级和建议话术。"""
+        db = SessionLocal()
+        try:
+            reminders = RetentionService.list_reminders(db, status="pending")
+            data = [{
+                "customer_name": item.customer.name if item.customer else "未知",
+                "customer_phone": item.customer.phone if item.customer else "",
+                "priority": item.priority,
+                "reason": item.reason,
+                "suggested_message": item.suggested_message,
+            } for item in reminders]
+            return _dump({"count": len(data), "reminders": data})
+        finally:
+            db.close()
+
+    return [
+        search_knowledge,
+        get_salon_schedule,
+        get_birthday_members,
+        lookup_customer,
+        query_membership,
+        get_retention_reminders,
+    ]
 

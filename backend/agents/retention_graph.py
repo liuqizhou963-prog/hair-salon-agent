@@ -12,7 +12,7 @@ from typing import Any, TypedDict
 
 from backend.database.connection import SessionLocal
 from backend.database.models import User, UserRole, WalletAccount
-from backend.database.retention import CHURN_MULTIPLIER, RetentionService
+from backend.database.retention import RetentionService
 from backend.agents.trace import new_trace, trace_node
 
 try:
@@ -48,6 +48,16 @@ def collect_candidates(state: RetentionState) -> RetentionState:
                     "description": "距上次到店达到个人复购周期的 2.5 倍",
                 },
                 {
+                    "segment": "birthday",
+                    "label": "生日提醒",
+                    "description": "客户生日进入未来 5 天提醒窗口",
+                },
+                {
+                    "segment": "repurchase",
+                    "label": "复购提醒",
+                    "description": "距上次到店达到个人复购周期的 1.2 倍",
+                },
+                {
                     "segment": "balance_customer",
                     "label": "余额客户",
                     "description": "客户账户余额大于 0",
@@ -56,27 +66,16 @@ def collect_candidates(state: RetentionState) -> RetentionState:
         }
         for customer in customers:
             wallet = db.query(WalletAccount).filter(WalletAccount.user_id == customer.id).first()
-            if customer.last_visit:
-                days_since_last_visit = (now - customer.last_visit).days
-                cycle_days, cycle_basis = RetentionService.compute_cycle_days(db, customer)
-                threshold_days = round(cycle_days * CHURN_MULTIPLIER)
-                if days_since_last_visit >= cycle_days * CHURN_MULTIPLIER:
-                    candidates.append({
-                        "segment": "churn_risk",
-                        "customer_id": str(customer.id),
-                        "name": customer.name,
-                        "phone": customer.phone,
-                        "reason": (
-                            f"距上次到店 {days_since_last_visit} 天，{cycle_basis}，"
-                            f"已达到流失阈值 {threshold_days} 天"
-                        ),
-                        "evidence": {
-                            "days_since_last_visit": days_since_last_visit,
-                            "cycle_days": cycle_days,
-                            "threshold_days": threshold_days,
-                            "cycle_basis": cycle_basis,
-                        },
-                    })
+            hit = RetentionService.evaluate_customer(db, customer)
+            if hit:
+                candidates.append({
+                    "segment": hit["type"].value,
+                    "customer_id": str(customer.id),
+                    "name": customer.name,
+                    "phone": customer.phone,
+                    "reason": hit["reason"],
+                    "evidence": hit.get("evidence", {}),
+                })
             if wallet and wallet.balance_cents > 0:
                 candidates.append({
                     "segment": "balance_customer",
@@ -102,7 +101,7 @@ def collect_candidates(state: RetentionState) -> RetentionState:
 
 
 def classify_candidates(state: RetentionState) -> RetentionState:
-    summary = {"churn_risk": 0, "balance_customer": 0}
+    summary = {"churn_risk": 0, "birthday": 0, "repurchase": 0, "balance_customer": 0}
     for item in state.get("candidates", []):
         summary[item["segment"]] = summary.get(item["segment"], 0) + 1
     return trace_node({**state, "summary": summary}, "classify_candidates", detail={"segments": summary})
@@ -116,7 +115,7 @@ def generate_recommendations(state: RetentionState) -> RetentionState:
     recommendations = [
         {
             **item,
-            "suggested_message": messages[item["segment"]],
+            "suggested_message": messages.get(item["segment"], "您好，最近有需要安排护理或造型吗？"),
             "explainable": True,
         }
         for item in state.get("candidates", [])
