@@ -38,5 +38,26 @@ Page({
     } finally {
       this.setData({ loading: false });
     }
+  },
+
+  wechatLogin() {
+    if (this.data.loading) return;
+    this.setData({ loading: true, error: "" });
+    wx.login({
+      success: async result => {
+        try {
+          if (!result.code) throw new Error("微信登录凭证获取失败，请重试");
+          await getApp().wechatLogin(result.code);
+          wx.switchTab({ url: "/pages/mine/mine" });
+        } catch (error) {
+          this.setData({ error: error.message || "微信登录失败，请稍后重试" });
+        } finally {
+          this.setData({ loading: false });
+        }
+      },
+      fail: error => {
+        this.setData({ loading: false, error: error.errMsg || "微信登录失败，请稍后重试" });
+      }
+    });
   }
 });

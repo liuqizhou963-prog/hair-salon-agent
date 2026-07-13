@@ -58,6 +58,19 @@ class RefundStatus(enum.Enum):
     REJECTED = "rejected"
 
 
+class CustomerPackageStatus(enum.Enum):
+    ACTIVE = "active"
+    EXPIRED = "expired"
+    EXHAUSTED = "exhausted"
+    CANCELLED = "cancelled"
+
+
+class ServiceVerificationStatus(enum.Enum):
+    VERIFIED = "verified"
+    COMPLETED = "completed"
+    CANCELLED = "cancelled"
+
+
 class NotificationKind(enum.Enum):
     APPOINTMENT = "appointment"
     WALLET = "wallet"
@@ -80,7 +93,8 @@ class User(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
-    phone = Column(String(20), unique=True, nullable=False)
+    phone = Column(String(20), unique=True, nullable=True)
+    wechat_openid = Column(String(64), unique=True)
     email = Column(String(100), unique=True)
     role = Column(SQLEnum(UserRole), default=UserRole.CUSTOMER)
     password_hash = Column(String(255))
@@ -171,6 +185,7 @@ class Appointment(Base):
     stylist = relationship("Stylist", back_populates="appointments")
     time_slot = relationship("StylistTimeSlot", foreign_keys="[Appointment.time_slot_id]")
     transaction = relationship("Transaction", uselist=False, back_populates="appointment")
+    service_verification = relationship("ServiceVerification", uselist=False, back_populates="appointment")
 
 class Member(Base):
     """\u4f1a\u5458\u8868"""
@@ -202,6 +217,64 @@ class Transaction(Base):
     # \u5173\u7cfb
     user = relationship("User", back_populates="transactions")
     appointment = relationship("Appointment", back_populates="transaction")
+
+
+class ServicePackage(Base):
+    """A sellable service package, such as ten haircuts."""
+    __tablename__ = "service_packages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), nullable=False)
+    service = Column(String(100), nullable=False)
+    price = Column(Float, nullable=False)
+    total_uses = Column(Integer, nullable=False)
+    validity_days = Column(Integer, nullable=False, default=365)
+    is_active = Column(Boolean, default=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class CustomerPackage(Base):
+    """A customer's purchased or manually recorded package entitlement."""
+    __tablename__ = "customer_packages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    package_id = Column(UUID(as_uuid=True), ForeignKey("service_packages.id"), nullable=False)
+    purchase_price = Column(Float, nullable=False)
+    total_uses = Column(Integer, nullable=False)
+    remaining_uses = Column(Integer, nullable=False)
+    status = Column(SQLEnum(CustomerPackageStatus), default=CustomerPackageStatus.ACTIVE, nullable=False)
+    purchased_at = Column(DateTime, default=datetime.now, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+    customer = relationship("User")
+    package = relationship("ServicePackage")
+    service_verifications = relationship("ServiceVerification", back_populates="customer_package")
+
+
+class ServiceVerification(Base):
+    """The staff-controlled proof that an appointment service was delivered."""
+    __tablename__ = "service_verifications"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    appointment_id = Column(UUID(as_uuid=True), ForeignKey("appointments.id"), nullable=False, unique=True)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    stylist_id = Column(UUID(as_uuid=True), ForeignKey("stylists.id"), nullable=False)
+    customer_package_id = Column(UUID(as_uuid=True), ForeignKey("customer_packages.id"))
+    service = Column(String(100), nullable=False)
+    amount = Column(Float, nullable=False, default=0)
+    status = Column(SQLEnum(ServiceVerificationStatus), default=ServiceVerificationStatus.VERIFIED, nullable=False)
+    verified_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    verified_at = Column(DateTime, default=datetime.now, nullable=False)
+    completed_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.now)
+
+    appointment = relationship("Appointment", back_populates="service_verification")
+    customer = relationship("User", foreign_keys=[customer_id])
+    stylist = relationship("Stylist")
+    customer_package = relationship("CustomerPackage", back_populates="service_verifications")
+    verifier = relationship("User", foreign_keys=[verified_by])
 
 class ReminderLog(Base):
     """\u5ba2\u6237\u7ef4\u62a4\u63d0\u9192\u8bb0\u5f55

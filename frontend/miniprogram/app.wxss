@@ -1,7 +1,19 @@
 page {
   min-height: 100%;
-  color: #201c1a;
-  background: #fffaf7;
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-soft: #eef4ff;
+  --ink: #172033;
+  --muted: #748096;
+  --line: #e4e9f1;
+  --brand: #2f6fed;
+  --brand-dark: #1d49ad;
+  --success: #1d9565;
+  --gold: #bf7b17;
+  --gold-soft: #fff5df;
+  --danger: #c93d4d;
+  color: var(--ink);
+  background: var(--bg);
   font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
 }
 
@@ -29,7 +41,7 @@ button::after {
   margin: -28rpx -28rpx 28rpx;
   padding: 44rpx 36rpx 52rpx;
   color: #ffffff;
-  background: linear-gradient(180deg, #78b7e7 0%, #67a7d8 100%);
+  background: linear-gradient(180deg, var(--brand) 0%, var(--brand-dark) 100%);
   overflow: hidden;
   position: relative;
 }
@@ -49,7 +61,7 @@ button::after {
 .hair-logo {
   width: 44rpx;
   height: 44rpx;
-  border: 4rpx solid #edff57;
+  border: 4rpx solid rgba(255,255,255,.72);
   border-radius: 50%;
   box-sizing: border-box;
 }
@@ -106,7 +118,7 @@ button::after {
 }
 
 .muted {
-  color: #736760;
+  color: var(--muted);
   font-size: 24rpx;
   line-height: 1.4;
 }
@@ -118,26 +130,26 @@ button::after {
 }
 
 .card {
-  border: 2rpx solid #eadfd8;
+  border: 2rpx solid var(--line);
   border-radius: 24rpx;
-  background: #ffffff;
-  box-shadow: 0 16rpx 44rpx rgba(77,51,32,.08);
+  background: var(--surface);
+  box-shadow: 0 12rpx 32rpx rgba(29,48,82,.08);
 }
 
 .metric-card {
   display: flex;
   overflow: hidden;
-  border: 2rpx solid #eadfd8;
+  border: 2rpx solid var(--line);
   border-radius: 24rpx;
-  background: #ffffff;
-  box-shadow: 0 16rpx 44rpx rgba(77,51,32,.08);
+  background: var(--surface);
+  box-shadow: 0 12rpx 32rpx rgba(29,48,82,.08);
 }
 
 .metric-cell {
   flex: 1;
   min-width: 0;
   padding: 26rpx;
-  border-right: 2rpx solid #eadfd8;
+  border-right: 2rpx solid var(--line);
   text-align: left;
 }
 
@@ -147,7 +159,7 @@ button::after {
 
 .metric-cell text:first-child {
   display: block;
-  color: #736760;
+  color: var(--muted);
   font-size: 24rpx;
   font-weight: 800;
 }
@@ -155,7 +167,7 @@ button::after {
 .metric-value {
   display: block;
   margin-top: 12rpx;
-  color: #4f96ce;
+  color: var(--brand);
   font-size: 38rpx;
   line-height: 1.15;
   font-weight: 900;
@@ -193,8 +205,8 @@ input {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 2rpx solid #eadfd8;
-  color: #201c1a;
+  border-bottom: 2rpx solid var(--line);
+  color: var(--ink);
   text-align: left;
 }
 
@@ -225,13 +237,13 @@ input {
 .line-meta {
   display: block;
   margin-top: 6rpx;
-  color: #736760;
+  color: var(--muted);
   font-size: 24rpx;
   line-height: 1.45;
 }
 
 .chevron {
-  color: #736760;
+  color: var(--muted);
   font-size: 34rpx;
 }
 
@@ -258,8 +270,8 @@ input {
   align-items: center;
   justify-content: center;
   border-radius: 20rpx;
-  color: #4f96ce;
-  background: #eaf6fd;
+  color: var(--brand);
+  background: var(--surface-soft);
   font-size: 28rpx;
   font-weight: 900;
 }
@@ -289,7 +301,7 @@ input {
 .field-label {
   display: flex;
   flex-direction: column;
-  color: #201c1a;
+  color: var(--ink);
   font-size: 26rpx;
   font-weight: 900;
 }
@@ -302,10 +314,10 @@ input {
   width: 100%;
   min-height: 92rpx;
   padding: 0 26rpx;
-  border: 2rpx solid #eadfd8;
+  border: 2rpx solid var(--line);
   border-radius: 20rpx;
-  background: #ffffff;
-  color: #201c1a;
+  background: var(--surface);
+  color: var(--ink);
   font-size: 30rpx;
 }
 
@@ -323,8 +335,8 @@ input {
 }
 
 .primary-btn {
-  color: #201c1a;
-  background: #edff57;
+  color: #ffffff;
+  background: var(--brand);
 }
 
 .primary-btn[disabled] {
@@ -332,8 +344,8 @@ input {
 }
 
 .secondary-btn {
-  color: #1f746b;
-  background: #e2f1ed;
+  color: var(--brand-dark);
+  background: var(--surface-soft);
 }
 
 .pill {
@@ -342,8 +354,8 @@ input {
   align-items: center;
   padding: 0 18rpx;
   border-radius: 999rpx;
-  color: #1f746b;
-  background: #e2f1ed;
+  color: var(--brand-dark);
+  background: var(--surface-soft);
   font-size: 22rpx;
   font-weight: 900;
   line-height: 1.2;

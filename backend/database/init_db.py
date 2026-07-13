@@ -74,10 +74,6 @@ def seed_sample_data(days_ahead: int = 30):
             {"name": "李四", "phone": "13800002222", "specialty": "护理、造型", "years": 8},
             {"name": "王五", "phone": "13800003333", "specialty": "烫、护理、头皮", "years": 3},
             {"name": "赵六", "phone": "13800004444", "specialty": "造型、染", "years": 6},
-            {"name": "钱七", "phone": "13800005555", "specialty": "护理、头皮、烫", "years": 10},
-            {"name": "孙八", "phone": "13800006666", "specialty": "烫、造型", "years": 4},
-            {"name": "周九", "phone": "13800007777", "specialty": "染、护理", "years": 7},
-            {"name": "吴十", "phone": "13800008888", "specialty": "造型、烫、染", "years": 2},
         ]
         
         stylists = []

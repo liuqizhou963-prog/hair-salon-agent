@@ -30,7 +30,7 @@
 .visit-price {
   flex: 0 0 auto;
   margin-left: 24rpx;
-  color: #4f96ce;
+  color: var(--brand);
   font-size: 32rpx;
   font-weight: 900;
 }

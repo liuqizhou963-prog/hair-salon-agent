@@ -1,3 +1,21 @@
+function friendlyApiError(statusCode, detail, path) {
+  if (statusCode === 401) {
+    return path === "/api/auth/login" ? "账号或密码错误" : "登录已失效，请重新登录";
+  }
+  if (statusCode === 403) return "当前账号没有权限执行此操作";
+  if (statusCode === 404) {
+    return path.indexOf("/api/auth/") === 0 ? "用户不存在" : "请求的数据不存在";
+  }
+  if (statusCode === 409) {
+    return path === "/api/auth/register" ? "用户已存在，请直接登录" : "该操作已存在或状态已变化";
+  }
+  if (statusCode === 422) return "提交的信息格式不正确，请检查后重试";
+  if (statusCode === 503 && path === "/api/auth/wechat") return "微信登录尚未配置，请联系管理员";
+  if (statusCode === 502) return "微信服务暂时不可用，请稍后重试";
+  if (statusCode >= 500) return "服务器暂时不可用，请稍后重试";
+  return detail || ("请求失败（" + statusCode + "）");
+}
+
 App({
   globalData: {
     // 真机或微信开发者工具中可把这里改成后端的局域网地址。
@@ -37,14 +55,14 @@ App({
         data: config.data || {},
         header,
         success(response) {
+          const detail = response.data && (response.data.message || response.data.detail);
           if (response.statusCode === 401 && !config.skipAuthRedirect) {
             app.logout();
-            reject(new Error("登录已失效"));
+            reject(new Error(friendlyApiError(response.statusCode, detail, path)));
             return;
           }
           if (response.statusCode < 200 || response.statusCode >= 300) {
-            const detail = response.data && response.data.detail;
-            reject(new Error(detail || "请求失败"));
+            reject(new Error(friendlyApiError(response.statusCode, detail, path)));
             return;
           }
           resolve(response.data);
@@ -66,6 +84,18 @@ App({
     const result = await this.request("/api/auth/login", {
       method: "POST",
       data: { phone, password },
+      skipAuthRedirect: true
+    });
+    this.globalData.token = result.access_token;
+    wx.setStorageSync("hengyi_access_token", result.access_token);
+    await this.loadCurrentUser();
+    return result;
+  },
+
+  async wechatLogin(code) {
+    const result = await this.request("/api/auth/wechat", {
+      method: "POST",
+      data: { code },
       skipAuthRedirect: true
     });
     this.globalData.token = result.access_token;
@@ -119,15 +149,20 @@ App({
 
   async loadStylists() {
     const data = await this.request("/api/stylists");
-    const photos = [
-      "/assets/stylists/chen-yu-portrait.png",
-      "/assets/stylists/li-si-portrait.png",
-      "/assets/stylists/sophie-portrait.png",
-      "/assets/stylists/zhou-ran-portrait.png"
-    ];
-    this.globalData.stylists = data.slice(0, this.globalData.customerStylistDisplayLimit).map((item, index) => Object.assign({}, item, {
+    const presentationByPhone = {
+      "13800001111": { order: 0, photo: "/assets/stylists/chen-yu-portrait.png" },
+      "13800002222": { order: 1, photo: "/assets/stylists/li-si-portrait.png" },
+      "13800003333": { order: 2, photo: "/assets/stylists/sophie-portrait.png" },
+      "13800004444": { order: 3, photo: "/assets/stylists/zhou-ran-portrait.png" }
+    };
+    const sortedStylists = data.slice().sort((a, b) => {
+      const orderA = presentationByPhone[a.phone] ? presentationByPhone[a.phone].order : 999;
+      const orderB = presentationByPhone[b.phone] ? presentationByPhone[b.phone].order : 999;
+      return orderA - orderB || String(a.name).localeCompare(String(b.name), "zh-CN");
+    });
+    this.globalData.stylists = sortedStylists.slice(0, this.globalData.customerStylistDisplayLimit).map(item => Object.assign({}, item, {
       displayName: item.name + " 老师",
-      photo: photos[index % photos.length],
+      photo: presentationByPhone[item.phone]?.photo || "/assets/stylists/chen-yu-portrait.png",
       bookings: 0,
       works: 0
     }));

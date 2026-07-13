@@ -20,6 +20,8 @@ class Settings:
     ADMIN_TOKEN: str = os.getenv("ADMIN_TOKEN", "")
     AUTH_SECRET_KEY: str = os.getenv("AUTH_SECRET_KEY", DEFAULT_AUTH_SECRET_KEY)
     AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("AUTH_ACCESS_TOKEN_EXPIRE_MINUTES", "60"))
+    WECHAT_APP_ID: str = os.getenv("WECHAT_APP_ID", "")
+    WECHAT_APP_SECRET: str = os.getenv("WECHAT_APP_SECRET", "")
     DEMO_STAFF_PASSWORD: str = os.getenv("DEMO_STAFF_PASSWORD", "")
     DEMO_ADMIN_PHONE: str = os.getenv("DEMO_ADMIN_PHONE", "")
     DEMO_ADMIN_NAME: str = os.getenv("DEMO_ADMIN_NAME", "演示管理员")

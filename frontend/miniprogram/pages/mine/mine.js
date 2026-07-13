@@ -59,6 +59,10 @@ Page({
     wx.navigateTo({ url: "/pages/privacy/privacy" });
   },
 
+  logout() {
+    getApp().logout();
+  },
+
   goBooking() {
     wx.switchTab({ url: "/pages/booking/booking" });
   },

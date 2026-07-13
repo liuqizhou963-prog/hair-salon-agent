@@ -1,17 +1,17 @@
 .metric-card {
   display: flex;
   overflow: hidden;
-  border: 2rpx solid #eadfd8;
+  border: 2rpx solid var(--line);
   border-radius: 24rpx;
-  background: #ffffff;
-  box-shadow: 0 16rpx 44rpx rgba(77,51,32,.08);
+  background: var(--surface);
+  box-shadow: 0 12rpx 32rpx rgba(29,48,82,.08);
 }
 
 .metric-cell {
   flex: 1;
   min-width: 0;
   padding: 26rpx;
-  border-right: 2rpx solid #eadfd8;
+  border-right: 2rpx solid var(--line);
 }
 
 .metric-cell:last-child {
@@ -20,7 +20,7 @@
 
 .metric-cell text:first-child {
   display: block;
-  color: #736760;
+  color: var(--muted);
   font-size: 24rpx;
   font-weight: 800;
 }
@@ -28,7 +28,7 @@
 .metric-value {
   display: block;
   margin-top: 12rpx;
-  color: #4f96ce;
+  color: var(--brand);
   font-size: 38rpx;
   font-weight: 900;
   line-height: 1.15;
@@ -64,8 +64,8 @@
   width: 100%;
   min-height: 88rpx;
   padding: 0 24rpx;
-  border: 2rpx solid #eadfd8;
+  border: 2rpx solid var(--line);
   border-radius: 20rpx;
-  background: #ffffff;
+  background: var(--surface);
   font-size: 30rpx;
 }

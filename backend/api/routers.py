@@ -1,9 +1,10 @@
 ﻿"""API 路由 — 所有 REST 接口"""
 
+import httpx
 from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from sqlalchemy.orm import Session
 from loguru import logger
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import json
 
@@ -13,13 +14,16 @@ from backend.database.service import (
     UserService, StylistService, TimeSlotService, AppointmentService, MemberService,
 )
 from backend.database.retention import RetentionService
-from backend.database.finance import FinanceError, FinanceService, cents_to_amount
+from backend.database.finance import FinanceError, FinanceService, amount_to_cents, cents_to_amount
 from backend.database.appointment_change import AppointmentChangeError
 from backend.database.init_db import init_database, seed_sample_data
 from backend.database.models import (
     AuditLog, Member, Notification, NotificationKind, PointTransaction,
     RefundRequest, Transaction, User, ReminderLog, WalletAccount,
-    WalletTransaction, Appointment, UserRole, AgentTaskState, AgentTaskStatus,
+    WalletTransaction, Appointment, Stylist, UserRole, AgentTaskState, AgentTaskStatus,
+    RefundStatus, WalletDirection, WalletTransactionType, AppointmentStatus,
+    ServicePackage, CustomerPackage, CustomerPackageStatus,
+    ServiceVerification, ServiceVerificationStatus,
 )
 from backend.auth.security import (
     create_access_token,
@@ -42,11 +46,17 @@ from backend.api.schemas import (
     TransactionCreate, TransactionResponse, BirthdayCampaignResponse,
     StaffScheduleResponse, InitDBResponse,
     ReminderResponse, ScanResultResponse,
-    AuthRegisterRequest, AuthLoginRequest, TokenResponse, CurrentUserResponse,
+    AuthRegisterRequest, AuthLoginRequest, WechatLoginRequest, TokenResponse, CurrentUserResponse,
     ProfileUpdate,
     RechargeRequest, WalletResponse, WalletTransactionResponse,
     RefundCreate, RefundResponse, NotificationResponse, AuditLogResponse,
     PointTransactionResponse,
+    StaffCustomerWalletResponse, StaffServiceBreakdownResponse,
+    StaffPerformanceCustomerResponse, StaffPerformanceResponse, StaffOverviewResponse,
+    ServicePackageCreate, ServicePackageResponse,
+    CustomerPackageAssignRequest, CustomerPackageResponse,
+    ServiceVerificationCreate, ServiceVerificationResponse,
+    ServiceVerificationOptionsResponse,
     StaffAgentQueryRequest, StaffAgentQueryResponse,
     AppointmentChangeProposalRequest, AgentTaskResponse, AgentConfirmationRequest,
     RetentionAgentResponse,
@@ -64,6 +74,31 @@ def verify_admin_token(x_admin_token: str | None = Header(None)):
 
 
 # ===== 登录与身份 =====
+
+async def _fetch_wechat_openid(code: str) -> str:
+    if not settings.WECHAT_APP_ID or not settings.WECHAT_APP_SECRET:
+        raise HTTPException(status_code=503, detail="微信登录尚未配置 AppID 和 AppSecret")
+
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.get(
+                "https://api.weixin.qq.com/sns/jscode2session",
+                params={
+                    "appid": settings.WECHAT_APP_ID,
+                    "secret": settings.WECHAT_APP_SECRET,
+                    "js_code": code,
+                    "grant_type": "authorization_code",
+                },
+            )
+            response.raise_for_status()
+            payload = response.json()
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("WeChat login exchange failed: {}", exc)
+        raise HTTPException(status_code=502, detail="微信服务暂时不可用，请稍后重试") from exc
+
+    if payload.get("errcode") or not payload.get("openid"):
+        raise HTTPException(status_code=401, detail="微信登录凭证无效，请重试")
+    return payload["openid"]
 
 @router.post("/auth/register", response_model=CurrentUserResponse, status_code=201)
 async def register_customer(request: AuthRegisterRequest, db: Session = Depends(get_db)):
@@ -96,6 +131,33 @@ async def login(request: AuthLoginRequest, db: Session = Depends(get_db)):
             detail="手机号或密码错误",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+    return TokenResponse(
+        access_token=create_access_token(user),
+        expires_in=settings.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
+@router.post("/auth/wechat", response_model=TokenResponse)
+async def wechat_login(request: WechatLoginRequest, db: Session = Depends(get_db)):
+    openid = await _fetch_wechat_openid(request.code)
+    user = db.query(User).filter(User.wechat_openid == openid).first()
+
+    if user and not user.is_active:
+        raise HTTPException(status_code=403, detail="账号已停用，请联系门店")
+
+    if not user:
+        user = User(
+            name="微信用户",
+            phone=None,
+            wechat_openid=openid,
+            role=UserRole.CUSTOMER,
+            password_hash=None,
+            is_active=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
 
     return TokenResponse(
         access_token=create_access_token(user),
@@ -410,6 +472,8 @@ async def create_appointment(
     current_user: User = Depends(require_customer),
     db: Session = Depends(get_db),
 ):
+    if not current_user.phone:
+        raise HTTPException(status_code=409, detail="请先绑定手机号后再预约")
     if request.phone and request.phone != current_user.phone:
         raise HTTPException(status_code=400, detail="预约手机号必须与当前登录用户一致")
     result = client_appointment_service.book_appointment(
@@ -479,6 +543,551 @@ async def get_customers(
         )
         for customer in customers
     ]
+
+
+def _staff_date_window(date_value: str | None):
+    try:
+        target_date = datetime.strptime(date_value, "%Y-%m-%d").date() if date_value else datetime.now().date()
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail="日期格式必须是 YYYY-MM-DD") from exc
+    start = datetime.combine(target_date, datetime.min.time())
+    return target_date, start, start + timedelta(days=1)
+
+
+def _staff_service_breakdown(transactions: list[Transaction]) -> list[StaffServiceBreakdownResponse]:
+    grouped: dict[str, dict] = {}
+    for transaction in transactions:
+        service = transaction.service or "未命名服务"
+        item = grouped.setdefault(service, {"customers": set(), "orders": 0, "amount_cents": 0})
+        item["customers"].add(str(transaction.user_id))
+        item["orders"] += 1
+        item["amount_cents"] += amount_to_cents(transaction.amount)
+
+    return [
+        StaffServiceBreakdownResponse(
+            service=service,
+            customer_count=len(item["customers"]),
+            order_count=item["orders"],
+            amount_cents=item["amount_cents"],
+            amount=cents_to_amount(item["amount_cents"]),
+        )
+        for service, item in sorted(
+            grouped.items(), key=lambda entry: (-entry[1]["amount_cents"], entry[0])
+        )
+    ]
+
+
+def _staff_performance(
+    transactions: list[Transaction], stylists: list[Stylist] | None = None
+) -> list[StaffPerformanceResponse]:
+    grouped: dict[str, dict] = {}
+    for stylist in stylists or []:
+        grouped[str(stylist.id)] = {
+            "stylist_id": str(stylist.id),
+            "stylist_name": stylist.user.name,
+            "stylist_phone": stylist.user.phone,
+            "customers": set(),
+            "orders": 0,
+            "amount_cents": 0,
+            "services": {},
+            "records": [],
+        }
+    for transaction in transactions:
+        appointment = transaction.appointment
+        stylist = appointment.stylist if appointment else None
+        stylist_id = str(stylist.id) if stylist else None
+        group_key = stylist_id or "unassigned"
+        item = grouped.setdefault(
+            group_key,
+            {
+                "stylist_id": stylist_id,
+                "stylist_name": stylist.user.name if stylist else "未关联发型师",
+                "stylist_phone": stylist.user.phone if stylist else None,
+                "customers": set(),
+                "orders": 0,
+                "amount_cents": 0,
+                "services": {},
+                "records": [],
+            },
+        )
+        amount_cents = amount_to_cents(transaction.amount)
+        item["customers"].add(str(transaction.user_id))
+        item["orders"] += 1
+        item["amount_cents"] += amount_cents
+
+        service = transaction.service or "未命名服务"
+        service_item = item["services"].setdefault(service, {"customers": set(), "orders": 0, "amount_cents": 0})
+        service_item["customers"].add(str(transaction.user_id))
+        service_item["orders"] += 1
+        service_item["amount_cents"] += amount_cents
+
+        item["records"].append(
+            StaffPerformanceCustomerResponse(
+                appointment_id=str(appointment.id) if appointment else None,
+                customer_name=transaction.user.name,
+                customer_phone=transaction.user.phone,
+                service=transaction.service or "未命名服务",
+                amount_cents=amount_cents,
+                amount=cents_to_amount(amount_cents),
+                status=appointment.status.value if appointment else "unlinked",
+                created_at=transaction.created_at.isoformat(),
+            )
+        )
+
+    result = []
+    for item in grouped.values():
+        services = [
+            StaffServiceBreakdownResponse(
+                service=service,
+                customer_count=len(service_item["customers"]),
+                order_count=service_item["orders"],
+                amount_cents=service_item["amount_cents"],
+                amount=cents_to_amount(service_item["amount_cents"]),
+            )
+            for service, service_item in sorted(
+                item["services"].items(),
+                key=lambda entry: (-entry[1]["amount_cents"], entry[0]),
+            )
+        ]
+        item["records"].sort(key=lambda record: record.created_at, reverse=True)
+        result.append(
+            StaffPerformanceResponse(
+                stylist_id=item["stylist_id"],
+                stylist_name=item["stylist_name"],
+                stylist_phone=item["stylist_phone"],
+                customer_count=len(item["customers"]),
+                order_count=item["orders"],
+                amount_cents=item["amount_cents"],
+                amount=cents_to_amount(item["amount_cents"]),
+                services=services,
+                customers=item["records"],
+            )
+        )
+    return sorted(result, key=lambda item: (-item.amount_cents, item.stylist_name))
+
+
+@router.get("/staff/customer-wallets", response_model=list[StaffCustomerWalletResponse])
+async def get_staff_customer_wallets(
+    _: User = Depends(require_staff), db: Session = Depends(get_db)
+):
+    customers = UserService.get_all_customers(db)
+    result = []
+    for customer in customers:
+        wallet = db.query(WalletAccount).filter(WalletAccount.user_id == customer.id).first()
+        wallet_transactions = []
+        if wallet:
+            wallet_transactions = db.query(WalletTransaction).filter(
+                WalletTransaction.wallet_id == wallet.id
+            ).order_by(WalletTransaction.created_at.desc()).limit(50).all()
+
+        recharge_transactions = db.query(WalletTransaction).filter(
+            WalletTransaction.wallet_id == wallet.id,
+            WalletTransaction.direction == WalletDirection.CREDIT,
+            WalletTransaction.transaction_type == WalletTransactionType.RECHARGE,
+        ).order_by(WalletTransaction.created_at.desc()).all() if wallet else []
+        recharge_total_cents = sum(item.amount_cents for item in recharge_transactions)
+        last_recharge_at = max(
+            (item.created_at for item in recharge_transactions), default=None
+        )
+        balance_cents = wallet.balance_cents if wallet else 0
+        result.append(
+            StaffCustomerWalletResponse(
+                customer_id=str(customer.id),
+                name=customer.name,
+                phone=customer.phone,
+                balance_cents=balance_cents,
+                balance=cents_to_amount(balance_cents),
+                recharge_total_cents=recharge_total_cents,
+                recharge_total=cents_to_amount(recharge_total_cents),
+                recharge_count=len(recharge_transactions),
+                last_recharge_at=last_recharge_at.isoformat() if last_recharge_at else None,
+                transactions=[_wallet_transaction_response(item) for item in wallet_transactions],
+            )
+        )
+    return result
+
+
+def _package_status(package: CustomerPackage, now: datetime | None = None) -> CustomerPackageStatus:
+    now = now or datetime.now()
+    if package.status == CustomerPackageStatus.CANCELLED:
+        return package.status
+    if package.remaining_uses <= 0:
+        return CustomerPackageStatus.EXHAUSTED
+    if package.expires_at <= now:
+        return CustomerPackageStatus.EXPIRED
+    return CustomerPackageStatus.ACTIVE
+
+
+def _customer_package_response(package: CustomerPackage) -> CustomerPackageResponse:
+    return CustomerPackageResponse(
+        customer_package_id=str(package.id),
+        customer_id=str(package.customer_id),
+        customer_name=package.customer.name,
+        customer_phone=package.customer.phone,
+        package_id=str(package.package_id),
+        package_name=package.package.name,
+        service=package.package.service,
+        purchase_price=package.purchase_price,
+        total_uses=package.total_uses,
+        remaining_uses=package.remaining_uses,
+        status=_package_status(package).value,
+        purchased_at=package.purchased_at.isoformat(),
+        expires_at=package.expires_at.isoformat(),
+    )
+
+
+def _service_verification_response(verification: ServiceVerification) -> ServiceVerificationResponse:
+    return ServiceVerificationResponse(
+        verification_id=str(verification.id),
+        appointment_id=str(verification.appointment_id),
+        customer_id=str(verification.customer_id),
+        customer_name=verification.customer.name,
+        customer_phone=verification.customer.phone,
+        stylist_id=str(verification.stylist_id),
+        stylist_name=verification.stylist.user.name,
+        service=verification.service,
+        amount=verification.amount,
+        status=verification.status.value,
+        customer_package_id=str(verification.customer_package_id) if verification.customer_package_id else None,
+        package_name=verification.customer_package.package.name if verification.customer_package else None,
+        remaining_uses=verification.customer_package.remaining_uses if verification.customer_package else None,
+        verified_at=verification.verified_at.isoformat(),
+        completed_at=verification.completed_at.isoformat() if verification.completed_at else None,
+    )
+
+
+def _parse_uuid(value: str, message: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except (ValueError, AttributeError) as exc:
+        raise HTTPException(status_code=422, detail=message) from exc
+
+
+@router.get("/staff/service-packages", response_model=list[ServicePackageResponse])
+async def get_staff_service_packages(
+    _: User = Depends(require_staff), db: Session = Depends(get_db)
+):
+    packages = db.query(ServicePackage).filter(ServicePackage.is_active.is_(True)).order_by(ServicePackage.name).all()
+    return [
+        ServicePackageResponse(
+            package_id=str(package.id),
+            name=package.name,
+            service=package.service,
+            price=package.price,
+            total_uses=package.total_uses,
+            validity_days=package.validity_days,
+            is_active=package.is_active,
+        )
+        for package in packages
+    ]
+
+
+@router.post("/staff/service-packages", response_model=ServicePackageResponse, status_code=201)
+async def create_staff_service_package(
+    request: ServicePackageCreate,
+    _: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    package = ServicePackage(
+        id=uuid.uuid4(),
+        name=request.name,
+        service=request.service,
+        price=request.price,
+        total_uses=request.total_uses,
+        validity_days=request.validity_days,
+        is_active=True,
+    )
+    db.add(package)
+    db.commit()
+    db.refresh(package)
+    return ServicePackageResponse(
+        package_id=str(package.id),
+        name=package.name,
+        service=package.service,
+        price=package.price,
+        total_uses=package.total_uses,
+        validity_days=package.validity_days,
+        is_active=package.is_active,
+    )
+
+
+@router.get("/staff/customer-packages", response_model=list[CustomerPackageResponse])
+async def get_staff_customer_packages(
+    customer_id: str | None = Query(None),
+    _: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    query = db.query(CustomerPackage).order_by(CustomerPackage.expires_at.asc())
+    if customer_id:
+        query = query.filter(CustomerPackage.customer_id == _parse_uuid(customer_id, "客户 ID 格式不正确"))
+    return [_customer_package_response(package) for package in query.all()]
+
+
+@router.post("/staff/customer-packages", response_model=CustomerPackageResponse, status_code=201)
+async def assign_staff_customer_package(
+    request: CustomerPackageAssignRequest,
+    current_user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    customer_id = _parse_uuid(request.customer_id, "客户 ID 格式不正确")
+    package_id = _parse_uuid(request.package_id, "套餐 ID 格式不正确")
+    customer = db.query(User).filter(User.id == customer_id, User.role == UserRole.CUSTOMER).first()
+    package = db.query(ServicePackage).filter(ServicePackage.id == package_id, ServicePackage.is_active.is_(True)).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="客户不存在")
+    if not package:
+        raise HTTPException(status_code=404, detail="套餐不存在或已停用")
+
+    purchased_at = datetime.now()
+    customer_package = CustomerPackage(
+        id=uuid.uuid4(),
+        customer_id=customer.id,
+        package_id=package.id,
+        purchase_price=package.price,
+        total_uses=package.total_uses,
+        remaining_uses=package.total_uses,
+        status=CustomerPackageStatus.ACTIVE,
+        purchased_at=purchased_at,
+        expires_at=purchased_at + timedelta(days=package.validity_days),
+    )
+    db.add(customer_package)
+    FinanceService.create_audit(
+        db, current_user.id, "service_package.assign", "customer_package", str(customer_package.id),
+        {"customer_id": str(customer.id), "package_id": str(package.id)},
+    )
+    db.commit()
+    db.refresh(customer_package)
+    return _customer_package_response(customer_package)
+
+
+def _appointment_for_verification(appointment_id: str, db: Session) -> Appointment:
+    appointment = db.query(Appointment).filter(
+        Appointment.id == _parse_uuid(appointment_id, "预约 ID 格式不正确")
+    ).first()
+    if not appointment:
+        raise HTTPException(status_code=404, detail="预约不存在")
+    return appointment
+
+
+def _eligible_customer_packages(appointment: Appointment, db: Session) -> list[CustomerPackage]:
+    packages = db.query(CustomerPackage).join(ServicePackage).filter(
+        CustomerPackage.customer_id == appointment.customer_id,
+        ServicePackage.is_active.is_(True),
+    ).order_by(CustomerPackage.expires_at.asc()).all()
+    return [
+        package for package in packages
+        if _package_status(package) == CustomerPackageStatus.ACTIVE
+        and package.package.service in {appointment.service, "通用服务"}
+    ]
+
+
+@router.get(
+    "/staff/appointments/{appointment_id}/verification",
+    response_model=ServiceVerificationOptionsResponse,
+)
+async def get_service_verification_options(
+    appointment_id: str,
+    _: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    appointment = _appointment_for_verification(appointment_id, db)
+    verification = db.query(ServiceVerification).filter(
+        ServiceVerification.appointment_id == appointment.id
+    ).first()
+    return ServiceVerificationOptionsResponse(
+        appointment_id=str(appointment.id),
+        customer_id=str(appointment.customer_id),
+        customer_name=appointment.customer.name,
+        customer_phone=appointment.customer.phone,
+        stylist_id=str(appointment.stylist_id),
+        stylist_name=appointment.stylist.user.name,
+        service=appointment.service,
+        appointment_datetime=appointment.appointment_datetime.isoformat(),
+        appointment_status=appointment.status.value,
+        packages=[_customer_package_response(package) for package in _eligible_customer_packages(appointment, db)],
+        verification=_service_verification_response(verification) if verification else None,
+    )
+
+
+@router.post(
+    "/staff/appointments/{appointment_id}/verify",
+    response_model=ServiceVerificationResponse,
+    status_code=201,
+)
+async def verify_appointment_service(
+    appointment_id: str,
+    request: ServiceVerificationCreate,
+    current_user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    appointment = _appointment_for_verification(appointment_id, db)
+    if appointment.status == AppointmentStatus.CANCELLED:
+        raise HTTPException(status_code=409, detail="已取消的预约不能核验服务")
+    existing = db.query(ServiceVerification).filter(ServiceVerification.appointment_id == appointment.id).first()
+    if existing:
+        return _service_verification_response(existing)
+
+    customer_package = None
+    if request.customer_package_id:
+        package_id = _parse_uuid(request.customer_package_id, "客户套餐 ID 格式不正确")
+        customer_package = db.query(CustomerPackage).join(ServicePackage).filter(
+            CustomerPackage.id == package_id,
+            CustomerPackage.customer_id == appointment.customer_id,
+            ServicePackage.is_active.is_(True),
+        ).first()
+        if not customer_package:
+            raise HTTPException(status_code=404, detail="客户套餐不存在")
+        status = _package_status(customer_package)
+        if status != CustomerPackageStatus.ACTIVE:
+            raise HTTPException(status_code=409, detail=f"套餐当前状态为 {status.value}，不能核验")
+        if customer_package.package.service not in {appointment.service, "通用服务"}:
+            raise HTTPException(status_code=409, detail="套餐服务项目与预约项目不匹配")
+        amount = round(customer_package.purchase_price / customer_package.total_uses, 2)
+    else:
+        if request.amount is None or request.amount <= 0:
+            raise HTTPException(status_code=422, detail="非套餐服务必须填写大于 0 的消费金额")
+        amount = round(request.amount, 2)
+
+    verification = ServiceVerification(
+        id=uuid.uuid4(),
+        appointment_id=appointment.id,
+        customer_id=appointment.customer_id,
+        stylist_id=appointment.stylist_id,
+        customer_package_id=customer_package.id if customer_package else None,
+        service=appointment.service,
+        amount=amount,
+        status=ServiceVerificationStatus.VERIFIED,
+        verified_by=current_user.id,
+        verified_at=datetime.now(),
+    )
+    db.add(verification)
+    db.commit()
+    db.refresh(verification)
+    return _service_verification_response(verification)
+
+
+@router.post(
+    "/staff/service-verifications/{verification_id}/complete",
+    response_model=ServiceVerificationResponse,
+)
+async def complete_service_verification(
+    verification_id: str,
+    current_user: User = Depends(require_staff),
+    db: Session = Depends(get_db),
+):
+    verification = db.query(ServiceVerification).filter(
+        ServiceVerification.id == _parse_uuid(verification_id, "核验记录 ID 格式不正确")
+    ).first()
+    if not verification:
+        raise HTTPException(status_code=404, detail="核验记录不存在")
+    if verification.status == ServiceVerificationStatus.COMPLETED:
+        return _service_verification_response(verification)
+    if verification.status != ServiceVerificationStatus.VERIFIED:
+        raise HTTPException(status_code=409, detail="当前核验记录不能完成服务")
+    if verification.appointment.transaction:
+        raise HTTPException(status_code=409, detail="该预约已经存在消费记录，不能重复完成")
+
+    if verification.customer_package:
+        package = verification.customer_package
+        status = _package_status(package)
+        if status != CustomerPackageStatus.ACTIVE:
+            raise HTTPException(status_code=409, detail=f"套餐当前状态为 {status.value}，不能扣次")
+        package.remaining_uses -= 1
+        package.status = _package_status(package)
+
+    verification.status = ServiceVerificationStatus.COMPLETED
+    verification.completed_at = datetime.now()
+    appointment = verification.appointment
+    appointment.status = AppointmentStatus.COMPLETED
+    customer = verification.customer
+    customer.total_spent = (customer.total_spent or 0) + verification.amount
+    customer.last_visit = datetime.now()
+
+    transaction = Transaction(
+        id=uuid.uuid4(),
+        user_id=customer.id,
+        appointment_id=appointment.id,
+        amount=verification.amount,
+        service=verification.service,
+        created_at=datetime.now(),
+    )
+    db.add(transaction)
+
+    member = db.query(Member).filter(Member.user_id == customer.id).first()
+    points_added = int(verification.amount)
+    if member:
+        member.points += points_added
+        db.add(PointTransaction(
+            id=uuid.uuid4(),
+            user_id=customer.id,
+            amount=points_added,
+            balance_after=member.points,
+            reason=f"{verification.service}服务核销积分",
+            source_type="service_verification",
+            source_id=str(verification.id),
+        ))
+    FinanceService.create_audit(
+        db, current_user.id, "service_verification.complete", "service_verification", str(verification.id),
+        {
+            "appointment_id": str(appointment.id),
+            "stylist_id": str(verification.stylist_id),
+            "customer_package_id": str(verification.customer_package_id) if verification.customer_package_id else None,
+            "amount": verification.amount,
+        },
+    )
+    db.commit()
+    db.refresh(verification)
+    return _service_verification_response(verification)
+
+
+@router.get("/staff/overview", response_model=StaffOverviewResponse)
+async def get_staff_overview(
+    date: str | None = Query(None),
+    _: User = Depends(require_staff), db: Session = Depends(get_db),
+):
+    target_date, start, end = _staff_date_window(date)
+    consumption_transactions = db.query(Transaction).filter(
+        Transaction.created_at >= start,
+        Transaction.created_at < end,
+    ).order_by(Transaction.created_at.desc()).all()
+    wallet_transactions = db.query(WalletTransaction).filter(
+        WalletTransaction.created_at >= start,
+        WalletTransaction.created_at < end,
+    ).all()
+    pending_refund_cents = db.query(RefundRequest).filter(
+        RefundRequest.created_at >= start,
+        RefundRequest.created_at < end,
+        RefundRequest.status == RefundStatus.PENDING,
+    ).all()
+
+    recharge_cents = sum(
+        item.amount_cents for item in wallet_transactions
+        if item.direction == WalletDirection.CREDIT
+        and item.transaction_type == WalletTransactionType.RECHARGE
+    )
+    refund_cents = sum(
+        item.amount_cents for item in wallet_transactions
+        if item.direction == WalletDirection.DEBIT
+        and item.transaction_type == WalletTransactionType.REFUND
+    )
+    pending_cents = sum(item.amount_cents for item in pending_refund_cents)
+    staff_stylists = db.query(Stylist).join(User).filter(User.is_active.is_(True)).all()
+
+    return StaffOverviewResponse(
+        date=target_date.isoformat(),
+        customer_count=len({str(item.user_id) for item in consumption_transactions}),
+        order_count=len(consumption_transactions),
+        consumption_cents=sum(amount_to_cents(item.amount) for item in consumption_transactions),
+        consumption=cents_to_amount(sum(amount_to_cents(item.amount) for item in consumption_transactions)),
+        recharge_cents=recharge_cents,
+        recharge=cents_to_amount(recharge_cents),
+        refund_cents=refund_cents,
+        refund=cents_to_amount(refund_cents),
+        pending_refund_cents=pending_cents,
+        pending_refund=cents_to_amount(pending_cents),
+        services=_staff_service_breakdown(consumption_transactions),
+        performances=_staff_performance(consumption_transactions, staff_stylists),
+    )
 
 
 @router.post("/members", response_model=MemberResponse)
@@ -552,6 +1161,8 @@ async def create_transaction(
     customer = db.query(User).filter(User.id == current_user.id).first()
     if not customer:
         raise HTTPException(status_code=404, detail="客户不存在，请先创建会员或预约")
+    if request.appointment_id:
+        raise HTTPException(status_code=403, detail="预约服务必须由员工核验后完成")
 
     transaction = Transaction(
         id=uuid.uuid4(),
@@ -893,6 +1504,7 @@ async def run_retention_agent(
             status=task.status.value,
             summary=result["summary"],
             recommendations=result["recommendations"],
+            analysis_basis=result.get("analysis_basis", {}),
             trace_id=result.get("trace_id"),
             trace=result.get("trace", {}),
         )

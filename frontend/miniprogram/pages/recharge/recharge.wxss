@@ -13,15 +13,15 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 16rpx;
-  border: 2rpx solid #eadfd8;
+  border: 2rpx solid var(--line);
   border-radius: 24rpx;
-  color: #201c1a;
-  background: #ffffff;
+  color: var(--ink);
+  background: var(--surface);
 }
 
 .amount-btn.selected {
-  border-color: #1f746b;
-  background: #eaf7f4;
+  border-color: var(--brand);
+  background: var(--surface-soft);
 }
 
 .amount-value {
@@ -32,7 +32,7 @@
 .amount-bonus {
   display: block;
   margin-top: 8rpx;
-  color: #736760;
+  color: var(--muted);
   font-size: 22rpx;
   font-weight: 800;
 }

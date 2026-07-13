@@ -34,7 +34,7 @@ def _staff_headers():
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_retention_graph_segments_balance_and_expiring_members():
+def test_retention_graph_segments_balance_and_personalized_churn():
     assert build_retention_graph() is not None
     db = SessionLocal()
     try:
@@ -43,7 +43,7 @@ def test_retention_graph_segments_balance_and_expiring_members():
         db.flush()
         customer_id = customer.id
         db.add(WalletAccount(user_id=customer.id, balance_cents=8800))
-        db.add(Member(user_id=customer.id, expires_at=datetime.now() + timedelta(days=5)))
+        customer.last_visit = datetime.now() - timedelta(days=100)
         db.commit()
     finally:
         db.close()
@@ -53,7 +53,10 @@ def test_retention_graph_segments_balance_and_expiring_members():
     assert response.status_code == 200, response.text
     body = response.json()
     segments = {item["segment"] for item in body["recommendations"] if item["phone"] == "13970000003"}
-    assert {"balance_customer", "membership_expiring"}.issubset(segments)
+    assert {"balance_customer", "churn_risk"}.issubset(segments)
+    assert "membership_expiring" not in segments
+    assert body["analysis_basis"]["scanned_customer_count"] > 0
+    assert body["analysis_basis"]["rules"]
     assert body["task_id"]
 
     db = SessionLocal()

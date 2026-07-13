@@ -35,7 +35,7 @@
 
 .pill.dark {
   color: #ffffff;
-  background: #1f746b;
+  background: var(--brand-dark);
 }
 
 .slot-day {
@@ -78,9 +78,9 @@
   margin-bottom: 16rpx;
   padding: 22rpx;
   border-radius: 32rpx;
-  border: 2rpx solid #f2d7bd;
-  color: #201c1a;
-  background: #fff8f0;
+  border: 2rpx solid #c9d9fb;
+  color: var(--ink);
+  background: #f5f8ff;
   text-align: left;
   overflow: hidden;
 }
@@ -94,17 +94,17 @@
 }
 
 .slot-card.afternoon {
-  border-color: #b7d7d0;
-  background: #eaf7f4;
+  border-color: #b9cef8;
+  background: var(--surface-soft);
 }
 
 .slot-card.evening {
-  border-color: #d7d3ef;
-  background: #f1efff;
+  border-color: #d7def7;
+  background: #f5f7ff;
 }
 
 .slot-period {
-  color: #736760;
+  color: var(--muted);
   font-size: 24rpx;
   font-weight: 800;
   line-height: 1.2;
@@ -124,7 +124,7 @@
   min-height: 38rpx;
   padding: 0 12rpx;
   border-radius: 999rpx;
-  color: #1f746b;
+  color: var(--brand-dark);
   background: rgba(255,255,255,.72);
   font-size: 22rpx;
   font-weight: 900;

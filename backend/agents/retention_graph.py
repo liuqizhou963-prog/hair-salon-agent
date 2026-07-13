@@ -6,12 +6,13 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import lru_cache
 from typing import Any, TypedDict
 
 from backend.database.connection import SessionLocal
-from backend.database.models import Member, User, UserRole, WalletAccount
+from backend.database.models import User, UserRole, WalletAccount
+from backend.database.retention import CHURN_MULTIPLIER, RetentionService
 from backend.agents.trace import new_trace, trace_node
 
 try:
@@ -25,6 +26,7 @@ class RetentionState(TypedDict, total=False):
     candidates: list[dict[str, Any]]
     recommendations: list[dict[str, Any]]
     summary: dict[str, int]
+    analysis_basis: dict[str, Any]
     trace_id: str
     trace: dict[str, Any]
 
@@ -35,41 +37,72 @@ def collect_candidates(state: RetentionState) -> RetentionState:
     now = datetime.now()
     try:
         customers = db.query(User).filter(User.role == UserRole.CUSTOMER).all()
+        analysis_basis = {
+            "scope": "全店客户",
+            "scanned_customer_count": len(customers),
+            "data_sources": ["历史到店记录", "最近服务项目", "账户余额"],
+            "rules": [
+                {
+                    "segment": "churn_risk",
+                    "label": "流失风险",
+                    "description": "距上次到店达到个人复购周期的 2.5 倍",
+                },
+                {
+                    "segment": "balance_customer",
+                    "label": "余额客户",
+                    "description": "客户账户余额大于 0",
+                },
+            ],
+        }
         for customer in customers:
             wallet = db.query(WalletAccount).filter(WalletAccount.user_id == customer.id).first()
-            member = db.query(Member).filter(Member.user_id == customer.id).first()
-            if customer.last_visit and (now - customer.last_visit).days >= 60:
-                candidates.append({
-                    "segment": "churn_risk",
-                    "customer_id": str(customer.id),
-                    "name": customer.name,
-                    "phone": customer.phone,
-                    "reason": f"距上次到店 {(now - customer.last_visit).days} 天",
-                })
+            if customer.last_visit:
+                days_since_last_visit = (now - customer.last_visit).days
+                cycle_days, cycle_basis = RetentionService.compute_cycle_days(db, customer)
+                threshold_days = round(cycle_days * CHURN_MULTIPLIER)
+                if days_since_last_visit >= cycle_days * CHURN_MULTIPLIER:
+                    candidates.append({
+                        "segment": "churn_risk",
+                        "customer_id": str(customer.id),
+                        "name": customer.name,
+                        "phone": customer.phone,
+                        "reason": (
+                            f"距上次到店 {days_since_last_visit} 天，{cycle_basis}，"
+                            f"已达到流失阈值 {threshold_days} 天"
+                        ),
+                        "evidence": {
+                            "days_since_last_visit": days_since_last_visit,
+                            "cycle_days": cycle_days,
+                            "threshold_days": threshold_days,
+                            "cycle_basis": cycle_basis,
+                        },
+                    })
             if wallet and wallet.balance_cents > 0:
                 candidates.append({
                     "segment": "balance_customer",
                     "customer_id": str(customer.id),
                     "name": customer.name,
                     "phone": customer.phone,
-                    "reason": f"账户余额 ￥{wallet.balance_cents / 100:.2f}",
-                })
-            if member and member.expires_at and member.expires_at <= now + timedelta(days=30):
-                days = (member.expires_at.date() - now.date()).days
-                candidates.append({
-                    "segment": "membership_expiring",
-                    "customer_id": str(customer.id),
-                    "name": customer.name,
-                    "phone": customer.phone,
-                    "reason": "会员已到期" if days < 0 else f"会员将在 {days} 天后到期",
+                    "reason": f"账户余额 ￥{wallet.balance_cents / 100:.2f}，可作为回访触发点",
+                    "evidence": {
+                        "balance_cents": wallet.balance_cents,
+                        "balance": round(wallet.balance_cents / 100, 2),
+                    },
                 })
     finally:
         db.close()
-    return trace_node({**state, "candidates": candidates}, "collect_candidates", detail={"candidate_count": len(candidates)})
+    return trace_node(
+        {**state, "candidates": candidates, "analysis_basis": analysis_basis},
+        "collect_candidates",
+        detail={
+            "candidate_count": len(candidates),
+            "scanned_customer_count": analysis_basis["scanned_customer_count"],
+        },
+    )
 
 
 def classify_candidates(state: RetentionState) -> RetentionState:
-    summary = {"churn_risk": 0, "balance_customer": 0, "membership_expiring": 0}
+    summary = {"churn_risk": 0, "balance_customer": 0}
     for item in state.get("candidates", []):
         summary[item["segment"]] = summary.get(item["segment"], 0) + 1
     return trace_node({**state, "summary": summary}, "classify_candidates", detail={"segments": summary})
@@ -79,7 +112,6 @@ def generate_recommendations(state: RetentionState) -> RetentionState:
     messages = {
         "churn_risk": "您好，最近有一段时间没见到您了，想帮您安排一次护理或造型吗？",
         "balance_customer": "您好，您账户还有余额，最近有需要安排护理或造型吗？我可以帮您看看时间。",
-        "membership_expiring": "您好，您的会员权益即将到期，欢迎提前安排一次到店服务，我们可以帮您确认续期方案。",
     }
     recommendations = [
         {
@@ -116,5 +148,10 @@ def run_retention_graph(requester_id: str) -> dict[str, Any]:
         state = generate_recommendations(state)
     else:
         state = graph.invoke(state)
-    return {"summary": state.get("summary", {}), "recommendations": state.get("recommendations", []), "trace_id": state.get("trace_id"), "trace": state.get("trace", {})}
-
+    return {
+        "summary": state.get("summary", {}),
+        "recommendations": state.get("recommendations", []),
+        "analysis_basis": state.get("analysis_basis", {}),
+        "trace_id": state.get("trace_id"),
+        "trace": state.get("trace", {}),
+    }

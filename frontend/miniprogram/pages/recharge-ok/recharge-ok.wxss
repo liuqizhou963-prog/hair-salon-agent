@@ -22,5 +22,5 @@
 
 .pill.dark {
   color: #ffffff;
-  background: #1f746b;
+  background: var(--brand-dark);
 }

@@ -16,13 +16,13 @@
   ],
   "window": {
     "navigationBarTitleText": "恒艺美发",
-    "navigationBarBackgroundColor": "#fffaf7",
+    "navigationBarBackgroundColor": "#f5f7fb",
     "navigationBarTextStyle": "black",
-    "backgroundColor": "#fffaf7"
+    "backgroundColor": "#f5f7fb"
   },
   "tabBar": {
     "color": "#87908b",
-    "selectedColor": "#4f96ce",
+    "selectedColor": "#2f6fed",
     "backgroundColor": "#ffffff",
     "borderStyle": "white",
     "list": [

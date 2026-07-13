@@ -7,27 +7,29 @@
   <link rel="icon" href="data:," />
   <style>
     :root {
-      --bg: #eef7fc;
-      --paper: #fffaf7;
+      --bg: #f5f7fb;
+      --paper: #ffffff;
       --card: #ffffff;
-      --ink: #201c1a;
-      --muted: #736760;
-      --soft: #f2ebe6;
-      --line: #eadfd8;
-      --blue: #73b2e1;
-      --blue-2: #4f96ce;
-      --lime: #edff57;
-      --brand: #4f96ce;
-      --brand-2: #2f79b4;
-      --teal: #1f746b;
-      --teal-2: #124f4a;
-      --gold: #b9862f;
-      --plum: #5a4b87;
-      --danger: #b42318;
-      --warn-bg: #fff7ed;
-      --warn-border: #f5c57a;
-      --shadow: 0 16px 42px rgba(79,50,30,.13);
+      --ink: #172033;
+      --muted: #748096;
+      --soft: #eef4ff;
+      --line: #e4e9f1;
+      --blue: #2f6fed;
+      --blue-2: #2f6fed;
+      --lime: #2f6fed;
+      --brand: #2f6fed;
+      --brand-2: #1d49ad;
+      --teal: #2f6fed;
+      --teal-2: #1d49ad;
+      --gold: #bf7b17;
+      --plum: #53638c;
+      --danger: #c93d4d;
+      --warn-bg: #fff5df;
+      --warn-border: #f0d18f;
+      --shadow: 0 10px 26px rgba(29,48,82,.07);
       --nav-h: 72px;
+      --radius: 12px;
+      --radius-lg: 16px;
       color-scheme: light;
       font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
     }
@@ -38,8 +40,8 @@
       margin: 0;
       color: var(--ink);
       background:
-        radial-gradient(circle at 12% 0%, rgba(115,178,225,.24), transparent 32%),
-        radial-gradient(circle at 90% 12%, rgba(237,255,87,.18), transparent 28%),
+        radial-gradient(circle at 12% 0%, rgba(47,111,237,.08), transparent 32%),
+        radial-gradient(circle at 90% 12%, rgba(83,99,140,.08), transparent 28%),
         var(--bg);
     }
     button, input, select, textarea { font: inherit; }
@@ -111,15 +113,95 @@
     .section { margin-top: 20px; }
     .section > h2 { margin: 0 0 12px; font-size: 17px; }
 
+    /* ---- auth layout ---- */
+    .auth-layout {
+      min-height: calc(100dvh - var(--nav-h) - 40px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 24px;
+      padding: 28px 8px 40px;
+    }
+    .auth-brand {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      color: var(--brand-2);
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: .04em;
+    }
+    .auth-brand .hair-logo { background: var(--brand); }
+    .auth-heading { text-align: center; }
+    .auth-title {
+      margin: 0;
+      color: var(--ink);
+      font-size: clamp(30px, 8vw, 38px);
+      line-height: 1.15;
+      letter-spacing: -.04em;
+      font-weight: 900;
+    }
+    .auth-copy {
+      max-width: 280px;
+      margin: 10px auto 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .auth-form {
+      display: grid;
+      gap: 14px;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: var(--card);
+      box-shadow: 0 16px 36px rgba(29,48,82,.09);
+    }
+    .auth-field {
+      display: grid;
+      gap: 7px;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .auth-field input {
+      width: 100%;
+      min-height: 48px;
+      padding: 11px 13px;
+      color: var(--ink);
+      border: 1px solid #d9e0eb;
+      border-radius: 11px;
+      background: #fbfcfe;
+      transition: border-color .15s, box-shadow .15s, background .15s;
+    }
+    .auth-field input::placeholder { color: #98a3b4; }
+    .auth-field input:focus {
+      border-color: var(--brand);
+      background: white;
+      box-shadow: 0 0 0 4px rgba(47,111,237,.12);
+      outline: none;
+    }
+    .auth-submit { margin-top: 4px; border-radius: 11px; }
+    .auth-switch {
+      min-height: 40px;
+      color: var(--brand-2);
+      background: transparent;
+      font-size: 14px;
+      font-weight: 800;
+    }
+    .auth-switch:active { opacity: .7; }
+    .auth-error { min-height: 20px; text-align: center; }
+
     /* ---- cards & lists ---- */
-    .card { border: 1px solid var(--line); border-radius: 16px; background: var(--card); box-shadow: 0 8px 24px rgba(77,51,32,.08); overflow: hidden; }
+    .card { border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--card); box-shadow: var(--shadow); overflow: hidden; }
     .pad { padding: 16px; }
     .list { display: grid; gap: 10px; }
     .list-item {
       display: flex; gap: 12px; align-items: center;
       padding: 14px; text-align: left; color: var(--ink);
-      border: 1px solid var(--line); border-radius: 16px;
-      background: white; box-shadow: 0 4px 14px rgba(77,51,32,.06);
+      border: 1px solid var(--line); border-radius: var(--radius-lg);
+      background: white; box-shadow: var(--shadow);
     }
     .line-item {
       width: 100%; min-height: 52px;
@@ -195,24 +277,24 @@
     /* ---- buttons ---- */
     .btn {
       min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-      width: 100%; padding: 10px 14px; border-radius: 10px;
-      color: var(--ink); background: var(--lime);
-      box-shadow: 0 12px 24px rgba(54,83,32,.16);
+      width: 100%; padding: 10px 14px; border-radius: 8px;
+      color: white; background: var(--brand);
+      box-shadow: 0 6px 16px rgba(47,111,237,.18);
       font-weight: 900; font-size: 15px;
       transition: transform .1s, opacity .15s;
     }
     .btn:active { transform: scale(.97); }
-    .btn.secondary { color: var(--blue-2); background: #eaf6fd; box-shadow: none; }
-    .btn.ghost { color: var(--ink); background: #f5f0e8; }
+    .btn.secondary { color: var(--brand-2); background: var(--soft); box-shadow: none; }
+    .btn.ghost { color: var(--ink); background: var(--bg); box-shadow: none; }
     .btn.small { min-height: 34px; width: auto; padding: 6px 12px; font-size: 13px; }
-    .btn.teal { color: white; background: linear-gradient(135deg, var(--teal), var(--teal-2)); }
+    .btn.teal { color: white; background: linear-gradient(135deg, var(--brand), var(--brand-2)); }
 
     /* ---- nav card ---- */
     .nav-card {
       min-height: 100px; display: grid; align-content: space-between; gap: 6px;
       padding: 14px; text-align: left; color: var(--ink);
       background: white; border: 1px solid var(--line);
-      border-radius: 16px; box-shadow: 0 6px 18px rgba(77,51,32,.07);
+      border-radius: var(--radius-lg); box-shadow: var(--shadow);
     }
     .nav-card strong { display: block; font-size: 22px; font-weight: 900; }
     .nav-card span { color: var(--muted); font-size: 12px; line-height: 1.45; }
@@ -353,15 +435,15 @@
       padding: 0 10px;
       border-radius: 999px;
       color: var(--ink);
-      background: #f7f4f0;
-      box-shadow: inset 0 0 0 1px rgba(234,223,216,.62), 0 8px 18px rgba(77,51,32,.08);
+      background: var(--bg);
+      box-shadow: inset 0 0 0 1px var(--line), 0 8px 18px rgba(29,48,82,.06);
       font-size: 12px;
       font-weight: 900;
     }
     .follow-btn.active {
       color: white;
       background: linear-gradient(135deg, var(--teal), var(--teal-2));
-      box-shadow: 0 10px 18px rgba(31,116,107,.18);
+      box-shadow: 0 10px 18px rgba(47,111,237,.18);
     }
     @media (max-width: 390px) {
       .stylist-card-list { gap: 9px; }
@@ -388,7 +470,7 @@
       display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
       background: rgba(255,255,255,.96);
       border-top: 1px solid var(--line);
-      box-shadow: 0 -10px 28px rgba(77,51,32,.1);
+      box-shadow: 0 -10px 28px rgba(29,48,82,.08);
       z-index: 20;
     }
     .tab {
@@ -404,7 +486,7 @@
       padding: 24px 20px 44px;
       background:
         radial-gradient(circle at 20% 18%, rgba(255,255,255,.22), transparent 26%),
-        linear-gradient(180deg, #78b7e7 0%, #67a7d8 100%);
+        linear-gradient(180deg, var(--brand) 0%, var(--brand-2) 100%);
       color: white;
       position: relative;
       overflow: hidden;
@@ -439,7 +521,7 @@
       padding: 12px 6px 10px;
       border: 1px solid var(--line); border-radius: 16px;
       background: white; color: var(--ink);
-      box-shadow: 0 6px 16px rgba(77,51,32,.08);
+      box-shadow: var(--shadow);
       font-size: 12px; font-weight: 800;
     }
     .wallet-action-btn svg { width: 21px; height: 21px; stroke: var(--teal); stroke-width: 2; fill: none; }
@@ -451,7 +533,7 @@
       color: white;
       background:
         radial-gradient(circle at 18% 20%, rgba(255,255,255,.2), transparent 24%),
-        linear-gradient(180deg, #78b7e7 0%, #67a7d8 100%);
+        linear-gradient(180deg, var(--brand) 0%, var(--brand-2) 100%);
       position: relative;
       overflow: hidden;
     }
@@ -589,18 +671,18 @@
       padding: 13px;
       text-align: left;
       color: var(--ink);
-      background: #fff8f0;
-      border: 1px solid #f2d7bd;
+      background: #f5f8ff;
+      border: 1px solid #c9d9fb;
       border-radius: 16px;
       box-shadow: 0 6px 16px rgba(77,51,32,.06);
     }
     .slot-card.afternoon {
-      background: #eaf7f4;
-      border-color: #b7d7d0;
+      background: var(--soft);
+      border-color: #b9cef8;
     }
     .slot-card.evening {
-      background: #f1efff;
-      border-color: #d7d3ef;
+      background: #f5f7ff;
+      border-color: #d7def7;
     }
     .slot-period { color: var(--muted); font-size: 12px; font-weight: 800; }
     .slot-time { color: var(--ink); font-size: 22px; line-height: 1; font-weight: 900; }
@@ -677,7 +759,7 @@
 <script>
 const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
 const AUTH_TOKEN_KEY = "hengyi_access_token";
-const DEFAULT_STYLIST_PHOTO = `${API_BASE}/static/assets/stylists/sophie-bob.png`;
+const DEFAULT_STYLIST_PHOTO = `${API_BASE}/static/miniprogram/assets/stylists/chen-yu-portrait.png`;
 const CUSTOMER_STYLIST_DISPLAY_LIMIT = 4;
 
 function esc(s) {
@@ -744,12 +826,20 @@ const svg = {
   dismiss:'<svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>',
 };
 
-const stylistPhotoPool = [
-  "sophie-bob.png",
-  "li-si.png",
-  "chen-yu.png",
-  "zhou-ran.png",
-];
+const stylistPresentationByPhone = {
+  "13800001111": { order: 0, photo: "chen-yu-portrait.png" },
+  "13800002222": { order: 1, photo: "li-si-portrait.png" },
+  "13800003333": { order: 2, photo: "sophie-portrait.png" },
+  "13800004444": { order: 3, photo: "zhou-ran-portrait.png" },
+};
+
+function sortStylistsForDisplay(stylists) {
+  return [...stylists].sort((a, b) => {
+    const orderA = stylistPresentationByPhone[a.phone]?.order ?? 999;
+    const orderB = stylistPresentationByPhone[b.phone]?.order ?? 999;
+    return orderA - orderB || String(a.name).localeCompare(String(b.name), "zh-CN");
+  });
+}
 
 // =========================================================
 // STATE
@@ -779,19 +869,19 @@ const state = {
 function authPage() {
   const register = state.authMode === "register";
   return `
-    <div class="page-hero">
-      <div class="hero-brand"><span class="hair-logo"></span><span>HengYi Salon</span></div>
-      <h1 class="hero-title">${register ? "创建<br>账户" : "欢迎<br>回来"}</h1>
-      <div class="hero-copy-small">${register ? "注册后即可查看真实排档并管理预约。" : "登录后查看你的预约、会员权益和服务记录。"}</div>
-    </div>
-    <section class="section" style="margin-top:0">
-      <form id="authForm" class="card pad grid">
-        ${register ? '<label>姓名<input id="authName" required maxlength="100" autocomplete="name" aria-label="姓名"></label>' : ""}
-        <label>手机号<input id="authPhone" required inputmode="tel" autocomplete="tel" aria-label="手机号"></label>
-        <label>密码<input id="authPassword" required minlength="8" type="password" autocomplete="current-password" aria-label="密码"></label>
-        <button class="btn" type="submit">${register ? "注册并登录" : "登录"}</button>
-        <button class="btn secondary" type="button" data-auth-mode="${register ? "login" : "register"}">${register ? "已有账号，去登录" : "没有账号，去注册"}</button>
-        <div id="authError" class="meta" role="alert"></div>
+    <section class="auth-layout">
+      <div class="auth-brand"><span class="hair-logo"></span><span>HengYi Salon</span></div>
+      <div class="auth-heading">
+        <h1 class="auth-title">${register ? "创建账户" : "欢迎回来"}</h1>
+        <p class="auth-copy">${register ? "注册后即可查看真实排档并管理预约。" : "登录后查看你的预约、会员权益和服务记录。"}</p>
+      </div>
+      <form id="authForm" class="auth-form">
+        ${register ? '<label class="auth-field">姓名<input id="authName" required maxlength="100" autocomplete="name" aria-label="姓名" placeholder="请输入姓名"></label>' : ""}
+        <label class="auth-field">手机号<input id="authPhone" required inputmode="tel" autocomplete="tel" aria-label="手机号" placeholder="请输入手机号"></label>
+        <label class="auth-field">密码<input id="authPassword" required minlength="8" type="password" autocomplete="current-password" aria-label="密码" placeholder="至少 8 位密码"></label>
+        <button class="btn auth-submit" type="submit">${register ? "注册并登录" : "登录"}</button>
+        <button class="auth-switch" type="button" data-auth-mode="${register ? "login" : "register"}">${register ? "已有账号，去登录" : "没有账号，去注册"}</button>
+        <div id="authError" class="meta auth-error" role="alert"></div>
       </form>
     </section>`;
 }
@@ -1182,10 +1272,10 @@ async function loadStylists() {
   rerenderBooking();
   try {
     const data = await apiGet("/api/stylists");
-    state.stylists = data.slice(0, CUSTOMER_STYLIST_DISPLAY_LIMIT).map((stylist, index) => ({
+    state.stylists = sortStylistsForDisplay(data).slice(0, CUSTOMER_STYLIST_DISPLAY_LIMIT).map(stylist => ({
       ...stylist,
       displayName: `${stylist.name} 老师`,
-      photo: `${API_BASE}/static/assets/stylists/${stylistPhotoPool[index % stylistPhotoPool.length]}`,
+      photo: `${API_BASE}/static/miniprogram/assets/stylists/${stylistPresentationByPhone[stylist.phone]?.photo || "chen-yu-portrait.png"}`,
       bookings: 0,
       works: 0,
     }));

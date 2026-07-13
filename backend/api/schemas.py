@@ -68,6 +68,7 @@ class RetentionAgentResponse(BaseModel):
     status: str
     summary: dict[str, int]
     recommendations: List[dict[str, Any]] = Field(default_factory=list)
+    analysis_basis: dict[str, Any] = Field(default_factory=dict)
     trace_id: Optional[str] = None
     trace: dict[str, Any] = Field(default_factory=dict)
 
@@ -85,6 +86,10 @@ class AuthLoginRequest(BaseModel):
     password: str = Field(..., min_length=1, max_length=128)
 
 
+class WechatLoginRequest(BaseModel):
+    code: str = Field(..., min_length=1, max_length=128)
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -94,7 +99,7 @@ class TokenResponse(BaseModel):
 class CurrentUserResponse(BaseModel):
     user_id: str
     name: str
-    phone: str
+    phone: Optional[str] = None
     role: str
     birthday: Optional[str] = None
 
@@ -159,10 +164,23 @@ class AppointmentResponse(BaseModel):
 class CustomerResponse(BaseModel):
     customer_id: str
     name: str
-    phone: str
+    phone: Optional[str] = None
     birthday: Optional[str] = None
     total_spent: float = 0
     last_visit: Optional[str] = None
+
+
+class StaffCustomerWalletResponse(BaseModel):
+    customer_id: str
+    name: str
+    phone: Optional[str] = None
+    balance_cents: int = 0
+    balance: float = 0
+    recharge_total_cents: int = 0
+    recharge_total: float = 0
+    recharge_count: int = 0
+    last_recharge_at: Optional[str] = None
+    transactions: List["WalletTransactionResponse"] = Field(default_factory=list)
 
 
 class MemberCreate(BaseModel):
@@ -176,7 +194,7 @@ class MemberResponse(BaseModel):
     member_id: str
     customer_id: str
     name: str
-    phone: str
+    phone: Optional[str] = None
     level: str
     points: int
     birthday: Optional[str] = None
@@ -194,11 +212,87 @@ class TransactionCreate(BaseModel):
 class TransactionResponse(BaseModel):
     transaction_id: str
     customer_name: str
-    phone: str
+    phone: Optional[str] = None
     amount: float
     service: str
     created_at: str
     points_added: int
+
+
+class ServicePackageCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    service: str = Field(..., min_length=1, max_length=100)
+    price: float = Field(..., gt=0)
+    total_uses: int = Field(..., gt=0, le=1000)
+    validity_days: int = Field(365, gt=0, le=3650)
+
+
+class ServicePackageResponse(BaseModel):
+    package_id: str
+    name: str
+    service: str
+    price: float
+    total_uses: int
+    validity_days: int
+    is_active: bool
+
+
+class CustomerPackageAssignRequest(BaseModel):
+    customer_id: str
+    package_id: str
+
+
+class CustomerPackageResponse(BaseModel):
+    customer_package_id: str
+    customer_id: str
+    customer_name: str
+    customer_phone: Optional[str] = None
+    package_id: str
+    package_name: str
+    service: str
+    purchase_price: float
+    total_uses: int
+    remaining_uses: int
+    status: str
+    purchased_at: str
+    expires_at: str
+
+
+class ServiceVerificationCreate(BaseModel):
+    customer_package_id: Optional[str] = None
+    amount: Optional[float] = Field(None, ge=0)
+
+
+class ServiceVerificationResponse(BaseModel):
+    verification_id: str
+    appointment_id: str
+    customer_id: str
+    customer_name: str
+    customer_phone: Optional[str] = None
+    stylist_id: str
+    stylist_name: str
+    service: str
+    amount: float
+    status: str
+    customer_package_id: Optional[str] = None
+    package_name: Optional[str] = None
+    remaining_uses: Optional[int] = None
+    verified_at: str
+    completed_at: Optional[str] = None
+
+
+class ServiceVerificationOptionsResponse(BaseModel):
+    appointment_id: str
+    customer_id: str
+    customer_name: str
+    customer_phone: Optional[str] = None
+    stylist_id: str
+    stylist_name: str
+    service: str
+    appointment_datetime: str
+    appointment_status: str
+    packages: List[CustomerPackageResponse] = Field(default_factory=list)
+    verification: Optional[ServiceVerificationResponse] = None
 
 
 # ===== 钱包、退款、通知 =====
@@ -223,6 +317,53 @@ class WalletResponse(BaseModel):
     balance_cents: int
     balance: float
     transactions: List[WalletTransactionResponse] = Field(default_factory=list)
+
+
+class StaffServiceBreakdownResponse(BaseModel):
+    service: str
+    customer_count: int = 0
+    order_count: int = 0
+    amount_cents: int = 0
+    amount: float = 0
+
+
+class StaffPerformanceCustomerResponse(BaseModel):
+    appointment_id: Optional[str] = None
+    customer_name: str
+    customer_phone: Optional[str] = None
+    service: str
+    amount_cents: int = 0
+    amount: float = 0
+    status: str
+    created_at: str
+
+
+class StaffPerformanceResponse(BaseModel):
+    stylist_id: Optional[str] = None
+    stylist_name: str
+    stylist_phone: Optional[str] = None
+    customer_count: int = 0
+    order_count: int = 0
+    amount_cents: int = 0
+    amount: float = 0
+    services: List[StaffServiceBreakdownResponse] = Field(default_factory=list)
+    customers: List[StaffPerformanceCustomerResponse] = Field(default_factory=list)
+
+
+class StaffOverviewResponse(BaseModel):
+    date: str
+    customer_count: int = 0
+    order_count: int = 0
+    consumption_cents: int = 0
+    consumption: float = 0
+    recharge_cents: int = 0
+    recharge: float = 0
+    refund_cents: int = 0
+    refund: float = 0
+    pending_refund_cents: int = 0
+    pending_refund: float = 0
+    services: List[StaffServiceBreakdownResponse] = Field(default_factory=list)
+    performances: List[StaffPerformanceResponse] = Field(default_factory=list)
 
 
 class RefundCreate(BaseModel):
@@ -271,7 +412,7 @@ class PointTransactionResponse(BaseModel):
 class BirthdayCampaignResponse(BaseModel):
     member_id: str
     name: str
-    phone: str
+    phone: Optional[str] = None
     level: str
     points: int
     message: str
@@ -282,7 +423,7 @@ class BirthdayCampaignResponse(BaseModel):
 class StaffAppointmentResponse(BaseModel):
     appointment_id: str
     customer_name: str
-    customer_phone: str
+    customer_phone: Optional[str] = None
     service: str
     appointment_datetime: str
     status: str
@@ -299,7 +440,7 @@ class ReminderResponse(BaseModel):
     reminder_id: str
     customer_id: str
     customer_name: str
-    customer_phone: str
+    customer_phone: Optional[str] = None
     stylist_id: Optional[str] = None
     stylist_name: Optional[str] = None
     reminder_type: str          # repurchase / birthday / churn_risk
