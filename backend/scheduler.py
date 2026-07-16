@@ -8,6 +8,7 @@ from loguru import logger
 
 from backend.database.connection import SessionLocal
 from backend.database.retention import RetentionService
+from backend.config import settings
 
 # 每天几点扫描（本地时间）。放早上 8 点，发型师开工前清单就备好了。
 SCAN_HOUR = 8
@@ -30,6 +31,9 @@ def _run_daily_scan():
 def start_scheduler():
     """启动定时任务。装了 APScheduler 才生效，否则安静降级。"""
     global _scheduler
+    if not settings.SCHEDULER_ENABLED:
+        logger.info("定时任务未启用；生产环境请使用独立任务进程运行留存扫描")
+        return
     try:
         from apscheduler.schedulers.background import BackgroundScheduler
         from apscheduler.triggers.cron import CronTrigger

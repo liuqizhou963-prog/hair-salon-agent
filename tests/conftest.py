@@ -11,6 +11,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # 测试必须与开发演示库隔离；该变量要在导入 backend 模块前设置。
 os.environ["DATABASE_URL"] = "sqlite://"
+os.environ["STAFF_INTENT_USE_CHROMA"] = "false"
 
 from backend.database.connection import drop_all_tables, init_db
 from backend.database.init_db import seed_sample_data

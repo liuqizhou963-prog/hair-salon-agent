@@ -2,6 +2,7 @@
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
+from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta
 from typing import List, Optional
 from loguru import logger
@@ -139,7 +140,13 @@ class TimeSlotService:
                     
                     current_hour += 1
         
-        db.commit()
+        try:
+            db.commit()
+        except IntegrityError:
+            # Concurrent initializers may race on the database uniqueness guard.
+            # The winning transaction already created the same slots, so retrying
+            # the read path is sufficient and avoids surfacing a duplicate error.
+            db.rollback()
         logger.info("\u2705 \u65f6\u95f4\u69fd\u751f\u6210\u5b8c\u6210")
     
     @staticmethod
@@ -202,7 +209,9 @@ class AppointmentService:
     
     @staticmethod
     def create_appointment(db: Session, customer_id: str, stylist_id: str,
-                          slot_id: str, service: str, notes: str = None) -> Optional[Appointment]:
+                          slot_id: str, service: str, notes: str = None,
+                          status: AppointmentStatus = AppointmentStatus.PENDING,
+                          commit: bool = True) -> Optional[Appointment]:
         """Create an appointment with an atomic slot claim."""
         logger.info(f"Create appointment: {customer_id} -> {stylist_id}")
 
@@ -238,7 +247,7 @@ class AppointmentService:
             time_slot_id=slot_uuid,
             service=service,
             notes=notes,
-            status=AppointmentStatus.CONFIRMED,
+            status=status,
             appointment_datetime=datetime.strptime(f"{slot_date} {slot_time}", "%Y-%m-%d %H:%M"),
         )
         db.add(appointment)
@@ -248,8 +257,11 @@ class AppointmentService:
         slot.is_booked = True
         slot.booked_by_appointment_id = appointment.id
 
-        db.commit()
-        db.refresh(appointment)
+        if commit:
+            db.commit()
+            db.refresh(appointment)
+        else:
+            db.flush()
         logger.info(f"Appointment created successfully: {appointment.id}")
         return appointment
     @staticmethod
@@ -278,7 +290,11 @@ class AppointmentService:
         logger.info(f"\u274c \u53d6\u6d88\u9884\u7ea6: {appointment_id}")
         
         appointment = db.query(Appointment).filter(
-            Appointment.id == uuid.UUID(appointment_id)
+            Appointment.id == uuid.UUID(appointment_id),
+            Appointment.status.in_([
+                AppointmentStatus.PENDING,
+                AppointmentStatus.CONFIRMED,
+            ])
         ).first()
         
         if appointment:

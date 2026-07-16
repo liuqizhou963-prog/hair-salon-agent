@@ -35,7 +35,7 @@ def _staff_headers():
             id=uuid.uuid4(),
             name="统计员工",
             phone=phone,
-            role=UserRole.STYLIST,
+            role=UserRole.ADMIN,
             password_hash=hash_password(PASSWORD),
             is_active=True,
         ))
@@ -173,6 +173,7 @@ def test_staff_can_verify_package_service_and_complete_it_once():
         db.commit()
         appointment_id = str(appointment.id)
         customer_id = str(customer.id)
+        stylist_id = str(stylist.id)
     finally:
         db.close()
 
@@ -197,10 +198,37 @@ def test_staff_can_verify_package_service_and_complete_it_once():
     assert verified.json()["status"] == "verified"
     assert verified.json()["amount"] == 80
 
+    schedule = client.get(
+        "/api/staff/schedule",
+        params={"date": datetime.now().strftime("%Y-%m-%d")},
+        headers=staff_headers,
+    )
+    assert schedule.status_code == 200, schedule.text
+    scheduled = next(
+        item
+        for group in schedule.json()
+        for item in group["appointments"]
+        if item["appointment_id"] == appointment_id
+    )
+    assert scheduled["status"] == "verified"
+
+    overview_before_complete = client.get("/api/staff/overview", headers=staff_headers)
+    assert overview_before_complete.status_code == 200, overview_before_complete.text
+    verified_record = next(
+        item
+        for item in overview_before_complete.json()["verified_services"]
+        if item["appointment_id"] == appointment_id
+    )
+    assert verified_record["stylist_id"] == stylist_id
+    assert verified_record["status"] == "verified"
+    assert verified_record["completed_at"] is None
+    assert overview_before_complete.json()["order_count"] == 0
+
     verification_id = verified.json()["verification_id"]
     completed = client.post(
         f"/api/staff/service-verifications/{verification_id}/complete",
         headers=staff_headers,
+        json={"manager_password": PASSWORD},
     )
     assert completed.status_code == 200, completed.text
     assert completed.json()["status"] == "completed"
@@ -208,6 +236,7 @@ def test_staff_can_verify_package_service_and_complete_it_once():
     repeated = client.post(
         f"/api/staff/service-verifications/{verification_id}/complete",
         headers=staff_headers,
+        json={"manager_password": PASSWORD},
     )
     assert repeated.status_code == 200, repeated.text
 
@@ -226,3 +255,125 @@ def test_staff_can_verify_package_service_and_complete_it_once():
     assert client.get(
         f"/api/staff/appointments/{appointment_id}/verification", headers=customer_headers
     ).status_code == 403
+
+
+def test_direct_service_completion_deducts_wallet_and_updates_overview():
+    customer_phone = "13930000012"
+    customer_headers = _customer_headers(customer_phone)
+    staff_headers = _staff_headers()
+    recharge = client.post("/api/wallet/recharge", headers=customer_headers, json={"amount": 120})
+    assert recharge.status_code == 200, recharge.text
+
+    db = SessionLocal()
+    try:
+        customer = db.query(User).filter(User.phone == customer_phone).one()
+        stylist = db.query(Stylist).first()
+        slot = db.query(StylistTimeSlot).filter(
+            StylistTimeSlot.stylist_id == stylist.id,
+            StylistTimeSlot.is_booked.is_(False),
+        ).first()
+        appointment = Appointment(
+            id=uuid.uuid4(),
+            customer_id=customer.id,
+            stylist_id=stylist.id,
+            time_slot_id=slot.id,
+            service="剪发",
+            status=AppointmentStatus.CONFIRMED,
+            appointment_datetime=datetime.now(),
+        )
+        db.add(appointment)
+        db.commit()
+        appointment_id = str(appointment.id)
+        stylist_id = str(stylist.id)
+    finally:
+        db.close()
+
+    verified = client.post(
+        f"/api/staff/appointments/{appointment_id}/verify",
+        headers=staff_headers,
+        json={"amount": 88},
+    )
+    assert verified.status_code == 201, verified.text
+    completed = client.post(
+        f"/api/staff/service-verifications/{verified.json()['verification_id']}/complete",
+        headers=staff_headers,
+        json={"manager_password": PASSWORD},
+    )
+    assert completed.status_code == 200, completed.text
+
+    wallets = client.get("/api/staff/customer-wallets", headers=staff_headers)
+    assert wallets.status_code == 200, wallets.text
+    wallet = next(item for item in wallets.json() if item["phone"] == customer_phone)
+    assert wallet["balance"] == 32
+    purchase = next(item for item in wallet["transactions"] if item["transaction_type"] == "purchase")
+    assert purchase["direction"] == "debit"
+    assert purchase["amount_cents"] == 8800
+    assert purchase["balance_after_cents"] == 3200
+
+    overview = client.get("/api/staff/overview", headers=staff_headers)
+    assert overview.status_code == 200, overview.text
+    body = overview.json()
+    assert body["consumption"] == 88
+    performance = next(item for item in body["performances"] if item["stylist_id"] == stylist_id)
+    assert performance["amount"] == 88
+
+    db = SessionLocal()
+    try:
+        customer = db.query(User).filter(User.phone == customer_phone).one()
+        assert customer.total_spent == 88
+    finally:
+        db.close()
+
+
+def test_direct_service_completion_rejects_insufficient_wallet_balance_without_side_effects():
+    customer_phone = "13930000013"
+    customer_headers = _customer_headers(customer_phone)
+    staff_headers = _staff_headers()
+    recharge = client.post("/api/wallet/recharge", headers=customer_headers, json={"amount": 20})
+    assert recharge.status_code == 200, recharge.text
+
+    db = SessionLocal()
+    try:
+        customer = db.query(User).filter(User.phone == customer_phone).one()
+        stylist = db.query(Stylist).first()
+        slot = db.query(StylistTimeSlot).filter(
+            StylistTimeSlot.stylist_id == stylist.id,
+            StylistTimeSlot.is_booked.is_(False),
+        ).first()
+        appointment = Appointment(
+            id=uuid.uuid4(),
+            customer_id=customer.id,
+            stylist_id=stylist.id,
+            time_slot_id=slot.id,
+            service="染发",
+            status=AppointmentStatus.CONFIRMED,
+            appointment_datetime=datetime.now(),
+        )
+        db.add(appointment)
+        db.commit()
+        appointment_id = str(appointment.id)
+    finally:
+        db.close()
+
+    verified = client.post(
+        f"/api/staff/appointments/{appointment_id}/verify",
+        headers=staff_headers,
+        json={"amount": 88},
+    )
+    assert verified.status_code == 201, verified.text
+    completed = client.post(
+        f"/api/staff/service-verifications/{verified.json()['verification_id']}/complete",
+        headers=staff_headers,
+        json={"manager_password": PASSWORD},
+    )
+    assert completed.status_code == 409, completed.text
+
+    db = SessionLocal()
+    try:
+        customer = db.query(User).filter(User.phone == customer_phone).one()
+        appointment = db.query(Appointment).filter(Appointment.id == uuid.UUID(appointment_id)).one()
+        assert customer.total_spent == 0
+        assert appointment.status == AppointmentStatus.CONFIRMED
+        assert appointment.transaction is None
+    finally:
+        db.close()

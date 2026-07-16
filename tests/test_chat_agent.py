@@ -116,7 +116,7 @@ def test_langchain_agent_falls_back_without_key():
 
 def test_langchain_staff_role_falls_back_without_key():
     headers = _staff_headers()
-    response = client.post(
+    denied = client.post(
         "/api/chat/langchain",
         headers=headers,
         json={
@@ -125,10 +125,16 @@ def test_langchain_staff_role_falls_back_without_key():
             "role": "staff",
         },
     )
+    assert denied.status_code == 403
 
+    response = client.post(
+        "/api/staff/agent/query",
+        headers=headers,
+        json={"message": "今天有哪些预约？"},
+    )
     assert response.status_code == 200
     payload = response.json()
-    assert payload["actions"][0] in {"rule_agent_fallback", "langchain_agent:staff"}
+    assert payload["actions"]
 
 
 def test_customer_tool_rejects_foreign_appointment_cancel():
@@ -163,7 +169,7 @@ def test_chat_books_and_cancels_own_appointment():
     assert booking.status_code == 200
     booking_payload = booking.json()
     assert booking_payload["actions"] == ["book_appointment"]
-    assert "预约成功" in booking_payload["reply"]
+    assert "等待店长确认" in booking_payload["reply"]
 
     appointments = client.get(
         "/api/appointments", params={"phone": phone}, headers=headers
@@ -253,7 +259,7 @@ def test_member_transaction_and_birthday_campaign_flow():
     assert member.status_code == 200
     member_payload = member.json()
     assert member_payload["phone"] == phone
-    assert member_payload["level"] == "gold"
+    assert member_payload["level"] == "silver"
 
     transaction = client.post(
         "/api/transactions",
@@ -264,22 +270,20 @@ def test_member_transaction_and_birthday_campaign_flow():
             "service": "护理",
         },
     )
-    assert transaction.status_code == 200
-    transaction_payload = transaction.json()
-    assert transaction_payload["points_added"] == 268
+    assert transaction.status_code == 410
 
     point_records = client.get("/api/points/transactions", headers=headers)
     assert point_records.status_code == 200
-    assert point_records.json()[0]["amount"] == 268
+    assert point_records.json() == []
 
     members = client.get("/api/members", headers=headers)
     assert members.status_code == 200
     updated_member = next(
         item for item in members.json() if item["phone"] == phone
     )
-    assert updated_member["points"] >= 268
+    assert updated_member["points"] == 0
 
-    birthdays = client.get("/api/marketing/birthdays", headers=_staff_headers())
+    birthdays = client.get("/api/marketing/birthdays", headers=_admin_headers())
     assert birthdays.status_code == 200
     campaign = next(
         item for item in birthdays.json() if item["phone"] == phone

@@ -26,6 +26,11 @@ class Settings:
     DEMO_ADMIN_PHONE: str = os.getenv("DEMO_ADMIN_PHONE", "")
     DEMO_ADMIN_NAME: str = os.getenv("DEMO_ADMIN_NAME", "演示管理员")
     DEMO_ADMIN_PASSWORD: str = os.getenv("DEMO_ADMIN_PASSWORD", "")
+    DEMO_MODE: bool = os.getenv("DEMO_MODE", "true").lower() == "true"
+    SCHEDULER_ENABLED: bool = os.getenv(
+        "SCHEDULER_ENABLED",
+        "false" if APP_ENV in {"production", "prod"} else "true",
+    ).lower() == "true"
 
     # 数据库
     DATABASE_URL: str = os.getenv("DATABASE_URL", "")
@@ -41,6 +46,9 @@ class Settings:
     # ChromaDB
     RAG_USE_CHROMA: bool = os.getenv("RAG_USE_CHROMA", "false").lower() == "true"
     CHROMA_PERSIST_DIR: str = os.getenv("CHROMA_PERSIST_DIR", "./chroma_data")
+    STAFF_INTENT_USE_CHROMA: bool = os.getenv(
+        "STAFF_INTENT_USE_CHROMA", os.getenv("RAG_USE_CHROMA", "false")
+    ).lower() == "true"
 
     # Redis (预留)
     REDIS_URL: str = os.getenv("REDIS_URL", "")
@@ -83,6 +91,8 @@ def validate_security_settings(config: Settings | None = None) -> None:
         errors.append("DATABASE_URL must point to the production database")
     if not config.RATE_LIMIT_ENABLED:
         errors.append("RATE_LIMIT_ENABLED must be true")
+    if config.DEMO_MODE:
+        errors.append("DEMO_MODE must be false")
 
     if errors:
         raise RuntimeError("Production security checks failed: " + "; ".join(errors))

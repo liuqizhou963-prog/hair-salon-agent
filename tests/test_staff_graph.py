@@ -1,4 +1,6 @@
 import pytest
+from datetime import date
+
 from fastapi.testclient import TestClient
 
 from backend.main import app
@@ -9,9 +11,9 @@ from backend.database.models import (
     AgentTaskState,
     AgentTaskStatus,
     Member,
-    ReminderLog,
-    ReminderStatus,
     ReminderType,
+    RetentionTask,
+    RetentionTaskStatus,
     User,
     UserRole,
     WalletAccount,
@@ -36,6 +38,22 @@ def _login_staff():
     finally:
         db.close()
     response = client.post("/api/auth/login", json={"phone": phone, "password": "StaffPass123!"})
+    assert response.status_code == 200, response.text
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+def _login_manager():
+    from backend.auth.security import hash_password
+
+    db = SessionLocal()
+    try:
+        manager = db.query(User).filter(User.role == UserRole.ADMIN).first()
+        manager.password_hash = hash_password("ManagerPass123!")
+        db.commit()
+        phone = manager.phone
+    finally:
+        db.close()
+    response = client.post("/api/auth/login", json={"phone": phone, "password": "ManagerPass123!"})
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
 
@@ -92,7 +110,7 @@ def test_customer_cannot_use_staff_readonly_graph():
 def test_staff_graph_uses_rag_for_haircare_question():
     response = client.post(
         "/api/staff/agent/query",
-        headers=_login_staff(),
+        headers=_login_manager(),
         json={"message": "染发后怎么护理？"},
     )
 
@@ -148,7 +166,7 @@ def test_staff_graph_queries_customer_membership_and_wallet_from_database():
 
     response = client.post(
         "/api/staff/agent/query",
-        headers=_login_staff(),
+        headers=_login_manager(),
         json={"message": "13970000005的会员余额和积分是多少？"},
     )
 
@@ -161,19 +179,58 @@ def test_staff_graph_queries_customer_membership_and_wallet_from_database():
     assert "68.00" in body["reply"]
 
 
+def test_staff_membership_query_hides_wallet_balance():
+    db = SessionLocal()
+    try:
+        customer = User(name="员工会员查询客户", phone="13970000015", role=UserRole.CUSTOMER)
+        db.add(customer)
+        db.flush()
+        db.add(Member(user_id=customer.id, points=88))
+        db.add(WalletAccount(user_id=customer.id, balance_cents=9900))
+        db.commit()
+    finally:
+        db.close()
+
+    response = client.post(
+        "/api/staff/agent/query",
+        headers=_login_staff(),
+        json={"message": "13970000015的会员余额和积分是多少？"},
+    )
+
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert "员工会员查询客户" in body["reply"]
+    assert "积分 88" in body["reply"]
+    assert "99.00" not in body["reply"]
+    assert "database:wallets" not in body["sources"]
+
+
 def test_staff_graph_queries_retention_reminders_from_database():
     db = SessionLocal()
     try:
         customer = User(name="留存查询客户", phone="13970000006", role=UserRole.CUSTOMER)
         db.add(customer)
         db.flush()
-        db.add(ReminderLog(
+        db.add(RetentionTask(
             customer_id=customer.id,
-            reminder_type=ReminderType.REPURCHASE,
-            status=ReminderStatus.PENDING,
+            business_date=date.today(),
+            primary_type=ReminderType.REPURCHASE,
+            status=RetentionTaskStatus.PENDING_REVIEW,
             priority=10,
-            reason="距离上次护理已超过个人节奏",
+            suggestion_reason="距离上次护理已超过个人节奏",
             suggested_message="欢迎回来",
+        ))
+        cooling_customer = User(name="已联系留存客户", phone="13970000007", role=UserRole.CUSTOMER)
+        db.add(cooling_customer)
+        db.flush()
+        db.add(RetentionTask(
+            customer_id=cooling_customer.id,
+            business_date=date.today(),
+            primary_type=ReminderType.CHURN_RISK,
+            status=RetentionTaskStatus.COOLING,
+            priority=20,
+            suggestion_reason="已经发送过",
+            suggested_message="不应再次展示",
         ))
         db.commit()
     finally:
@@ -188,8 +245,9 @@ def test_staff_graph_queries_retention_reminders_from_database():
     assert response.status_code == 200, response.text
     body = response.json()
     assert "tool:get_retention_reminders" in body["actions"]
-    assert "database:reminder_logs" in body["sources"]
+    assert "database:retention_tasks" in body["sources"]
     assert "留存查询客户" in body["reply"]
+    assert "已联系留存客户" not in body["reply"]
 
 
 def test_staff_graph_understands_natural_date_phrases():

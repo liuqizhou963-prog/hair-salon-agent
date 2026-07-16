@@ -1,4 +1,4 @@
-﻿"""员\u5de5\u65e5\u7a0b\u7ba1\u7406"""
+"""员\u5de5\u65e5\u7a0b\u7ba1\u7406"""
 
 from loguru import logger
 from typing import List, Dict, Any, Optional
@@ -32,7 +32,7 @@ class StaffScheduleService:
                     "stylist_name": apt.stylist.user.name,
                     "service": apt.service,
                     "appointment_datetime": apt.appointment_datetime.isoformat(),
-                    "status": apt.status.value,
+                    "status": apt.service_verification.status.value if apt.service_verification else apt.status.value,
                     "notes": apt.notes
                 }
                 for apt in appointments
@@ -67,7 +67,7 @@ class StaffScheduleService:
                         "customer_phone": apt.customer.phone,
                         "service": apt.service,
                         "appointment_datetime": apt.appointment_datetime.isoformat(),
-                        "status": apt.status.value,
+                        "status": apt.service_verification.status.value if apt.service_verification else apt.status.value,
                         "notes": apt.notes,
                     }
                     for apt in appointments

@@ -1,4 +1,4 @@
-﻿"""数据库\u521d\u59cb\u5316\u811a\u672c"""
+"""数据库\u521d\u59cb\u5316\u811a\u672c"""
 
 from loguru import logger
 from sqlalchemy.orm import Session
@@ -7,7 +7,8 @@ import uuid
 
 from backend.database.connection import init_db, drop_all_tables, SessionLocal
 from backend.database.models import (
-    User, Stylist, StylistTimeSlot, Appointment,
+    User, Stylist, StylistTimeSlot, Appointment, Transaction, Member, MemberLevel,
+    WalletAccount, WalletTransaction, WalletDirection, WalletTransactionType,
     UserRole, AppointmentStatus,
 )
 from backend.database.service import (
@@ -142,6 +143,49 @@ def _make_past_appointment(db, customer, stylist, days_ago, service):
     return appt
 
 
+def _seed_retention_customer_financials(db, customer, appointments, target_balance: float) -> None:
+    """给留存演示客户补齐可追溯的消费、充值、余额和会员资料。"""
+    if db.query(Transaction).filter(Transaction.user_id == customer.id).first():
+        return
+    prices = {"染发": 398.0, "护理": 198.0, "烫发": 598.0, "剪发": 98.0}
+    total_spent = round(sum(prices.get(item.service, 268.0) for item in appointments), 2)
+    customer.total_spent = total_spent
+    wallet = db.query(WalletAccount).filter(WalletAccount.user_id == customer.id).first()
+    if not wallet:
+        wallet = WalletAccount(id=uuid.uuid4(), user_id=customer.id, balance_cents=0, created_at=min(item.appointment_datetime for item in appointments) - timedelta(days=10))
+        db.add(wallet)
+        db.flush()
+    recharge_cents = round((total_spent + target_balance) * 100)
+    wallet.balance_cents = recharge_cents
+    recharge_at = min(item.appointment_datetime for item in appointments) - timedelta(days=10)
+    db.add(WalletTransaction(
+        id=uuid.uuid4(), wallet_id=wallet.id, user_id=customer.id, amount_cents=recharge_cents,
+        direction=WalletDirection.CREDIT, transaction_type=WalletTransactionType.RECHARGE,
+        balance_after_cents=recharge_cents, note="演示充值到账", created_at=recharge_at,
+    ))
+    balance_cents = recharge_cents
+    for appointment in sorted(appointments, key=lambda item: item.appointment_datetime):
+        amount = round(prices.get(appointment.service, 268.0), 2)
+        amount_cents = round(amount * 100)
+        balance_cents -= amount_cents
+        db.add(Transaction(
+            id=uuid.uuid4(), user_id=customer.id, appointment_id=appointment.id,
+            amount=amount, service=appointment.service, created_at=appointment.appointment_datetime,
+        ))
+        db.add(WalletTransaction(
+            id=uuid.uuid4(), wallet_id=wallet.id, user_id=customer.id, amount_cents=amount_cents,
+            direction=WalletDirection.DEBIT, transaction_type=WalletTransactionType.PURCHASE,
+            balance_after_cents=balance_cents, reference_type="appointment", reference_id=str(appointment.id),
+            note=f"消费：{appointment.service}", created_at=appointment.appointment_datetime,
+        ))
+    wallet.balance_cents = round(target_balance * 100)
+    member = db.query(Member).filter(Member.user_id == customer.id).first()
+    if not member:
+        member = Member(id=uuid.uuid4(), user_id=customer.id, level=MemberLevel.SILVER, points=round(total_spent), joined_date=recharge_at, expires_at=datetime.now() + timedelta(days=365))
+        db.add(member)
+    else:
+        member.points = round(total_spent)
+
 def seed_retention_demo():
     """\u586b\u5145\u7528\u4e8e\u9a8c\u8bc1\u300c\u5ba2\u6237\u7ef4\u62a4 agent\u300d\u7684\u793a\u4f8b\u5ba2\u6237\u3002
 
@@ -190,10 +234,13 @@ def seed_retention_demo():
             for g in d["gaps"]:
                 acc += g
                 offsets.append(acc)
+            appointments = []
             for days_ago in sorted(offsets, reverse=True):
-                _make_past_appointment(db, user, s, days_ago, d["service"])
+                appointments.append(_make_past_appointment(db, user, s, days_ago, d["service"]))
 
             user.last_visit = today - timedelta(days=d["last"])
+            target_balances = {"13900000001": 800.0, "13900000002": 2600.0, "13900000003": 6200.0, "13900000004": 0.0}
+            _seed_retention_customer_financials(db, user, appointments, target_balances[d["phone"]])
             logger.info(f"\u2705 \u9020\u793a\u4f8b\u5ba2\u6237: {d['name']}\uff08\u4e0a\u6b21\u5230\u5e97 {d['last']} \u5929\u524d\uff09")
 
         db.commit()

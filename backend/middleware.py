@@ -35,11 +35,22 @@ class InMemoryRateLimiter:
         self.window_seconds = window_seconds
         self._events: dict[str, deque[float]] = defaultdict(deque)
         self._lock = Lock()
+        self._last_cleanup = 0.0
 
     def allow(self, key: str, now: float | None = None) -> tuple[bool, int]:
         current = monotonic() if now is None else now
         cutoff = current - self.window_seconds
         with self._lock:
+            if current - self._last_cleanup >= self.window_seconds:
+                self._events = defaultdict(
+                    deque,
+                    {
+                        key: values
+                        for key, values in self._events.items()
+                        if values and values[-1] > cutoff
+                    },
+                )
+                self._last_cleanup = current
             events = self._events[key]
             while events and events[0] <= cutoff:
                 events.popleft()

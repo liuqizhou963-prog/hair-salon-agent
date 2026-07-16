@@ -18,9 +18,11 @@ from loguru import logger
 from backend.database.connection import SessionLocal
 from backend.database.models import Appointment, Member, User, UserRole
 from backend.database.retention import RetentionService
+from backend.database.membership import member_display_level
 from backend.staff.schedule import staff_schedule_service
 from backend.rag.retriever import retrieve
 from backend.agents.trace import new_trace, trace_node
+from backend.agents.staff_intent import classify_staff_intent
 
 try:
     from langgraph.graph import END, START, StateGraph
@@ -34,6 +36,7 @@ else:
 class StaffQueryState(TypedDict, total=False):
     message: str
     requester_id: str
+    allow_financial: bool
     intent: str
     tool_result: Dict[str, Any]
     reply: str
@@ -99,29 +102,38 @@ def classify_request(state: StaffQueryState) -> StaffQueryState:
     message = state["message"].strip()
     compact = message.replace(" ", "")
     phone_or_name = _phone_from_message(compact) or _name_from_message(compact)
-
-    if phone_or_name and any(word in compact for word in ("客户", "最近", "有没有", "历史", "预约记录")):
-        intent = "customer"
-    elif any(word in compact for word in ("余额", "积分", "会员", "到期")):
-        intent = "membership"
-    elif any(word in compact for word in ("留存", "流失", "复购", "跟进", "运营提醒")):
-        intent = "retention"
-    elif any(word in compact for word in (
+    semantic = classify_staff_intent(compact)
+    semantic_intent = semantic["intent"]
+    knowledge_markers = (
         "护理", "头发", "洗发", "护发", "头皮", "烫发后", "染发后",
         "染膏", "双氧", "氧化乳", "双氧奶", "底色", "目标色", "配比",
         "用量", "校色", "补根", "补色", "漂粉", "漂发", "加热",
         "冷棕", "灰棕", "发根", "发中", "发尾", "褪色", "色度",
         "染前", "过敏测试", "发束测试", "白发覆盖", "多孔发", "受损发",
-    )):
-        intent = "knowledge"
-    elif _is_schedule_request(compact, bool(phone_or_name)):
+    )
+
+    if _is_schedule_request(compact, bool(phone_or_name)):
         intent = "schedule"
+    elif any(word in compact for word in knowledge_markers):
+        intent = "knowledge"
+    elif semantic_intent in {"schedule", "customer", "membership", "retention", "knowledge"}:
+        intent = semantic_intent
+    elif phone_or_name and any(word in compact for word in ("客户", "最近", "有没有", "历史", "预约记录")):
+        intent = "customer"
+    elif any(word in compact for word in ("余额", "积分", "会员", "到期")):
+        intent = "membership"
+    elif any(word in compact for word in ("留存", "流失", "复购", "跟进", "运营提醒")):
+        intent = "retention"
     elif phone_or_name:
         intent = "customer"
     else:
         intent = "help"
 
-    return trace_node({**state, "intent": intent, "actions": [f"intent:{intent}"]}, "classify_request", detail={"intent": intent})
+    return trace_node(
+        {**state, "intent": intent, "actions": [f"intent:{intent}"]},
+        "classify_request",
+        detail={"intent": intent, "intent_method": semantic["method"], "intent_score": semantic["score"]},
+    )
 
 
 def _appointment_payload(appointment: Appointment) -> dict[str, Any]:
@@ -186,46 +198,49 @@ def query_membership(state: StaffQueryState) -> StaffQueryState:
             members = db.query(Member).filter(Member.user_id == customer.id).all()
         else:
             members = db.query(Member).join(User).filter(User.role == UserRole.CUSTOMER).limit(50).all()
-        result = {
-            "members": [
-                {
-                    "customer_id": str(member.user_id),
-                    "name": member.user.name,
-                    "phone": member.user.phone,
-                    "level": member.level.value,
-                    "points": member.points,
-                    "expires_at": member.expires_at.isoformat() if getattr(member, "expires_at", None) else None,
-                    "balance": round((member.user.wallet_account.balance_cents if member.user.wallet_account else 0) / 100, 2),
-                }
-                for member in members
-            ]
-        }
+        rows = []
+        for member in members:
+            row = {
+                "customer_id": str(member.user_id),
+                "name": member.user.name,
+                "phone": member.user.phone,
+                "level": member_display_level(member.level.value, member.user.wallet_account.balance_cents if member.user.wallet_account else 0),
+                "points": member.points,
+                "expires_at": member.expires_at.isoformat() if getattr(member, "expires_at", None) else None,
+            }
+            if state.get("allow_financial", False):
+                row["balance"] = round((member.user.wallet_account.balance_cents if member.user.wallet_account else 0) / 100, 2)
+            rows.append(row)
+        result = {"members": rows}
     finally:
         db.close()
-    return trace_node({**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:query_membership"], "sources": ["database:members", "database:wallets"]}, "query_membership", detail={"tool": "query_membership"})
+    sources = ["database:members"]
+    if state.get("allow_financial", False):
+        sources.append("database:wallets")
+    return trace_node({**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:query_membership"], "sources": sources}, "query_membership", detail={"tool": "query_membership", "allow_financial": state.get("allow_financial", False)})
 
 
 def query_retention(state: StaffQueryState) -> StaffQueryState:
     db = SessionLocal()
     try:
-        reminders = RetentionService.list_reminders(db, status="pending")
+        tasks = RetentionService.list_tasks(db, today_only=True)
         result = {
             "reminders": [
                 {
-                    "reminder_id": str(item.id),
-                    "customer_name": item.customer.name if item.customer else "未知",
-                    "customer_phone": item.customer.phone if item.customer else "",
-                    "reminder_type": item.reminder_type.value,
-                    "priority": item.priority,
-                    "reason": item.reason,
-                    "suggested_message": item.suggested_message,
+                    "reminder_id": str(task.id),
+                    "customer_name": task.customer.name if task.customer else "未知",
+                    "customer_phone": task.customer.phone if task.customer else "",
+                    "reminder_type": task.primary_type.value,
+                    "priority": task.priority,
+                    "reason": task.suggestion_reason or "留存任务待处理",
+                    "suggested_message": task.suggested_message,
                 }
-                for item in reminders
+                for task in tasks
             ]
         }
     finally:
         db.close()
-    return trace_node({**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:get_retention_reminders"], "sources": ["database:reminder_logs"]}, "query_retention", detail={"tool": "get_retention_reminders"})
+    return trace_node({**state, "tool_result": result, "actions": [*state.get("actions", []), "tool:get_retention_reminders"], "sources": ["database:retention_tasks"]}, "query_retention", detail={"tool": "get_retention_tasks"})
 
 
 def query_knowledge(state: StaffQueryState) -> StaffQueryState:
@@ -243,7 +258,7 @@ def format_response(state: StaffQueryState) -> StaffQueryState:
     intent = state.get("intent")
     result = state.get("tool_result", {})
     if intent == "help":
-        reply = "我可以帮你查询：今天预约、客户预约记录、会员余额和积分、留存提醒，以及护理知识。"
+        reply = "我可以帮你查询：今天预约、客户预约记录、会员等级和积分、留存提醒，以及护理知识。"
     elif intent == "schedule":
         lines = [f"{result.get('date', '今天')}共有 {sum(len(items) for items in result.get('schedule', {}).values())} 条预约。"]
         for stylist, items in result.get("schedule", {}).items():
@@ -264,7 +279,11 @@ def format_response(state: StaffQueryState) -> StaffQueryState:
         if not members:
             reply = "没有查到会员资料。"
         else:
-            reply = "\n".join(f"{item['name']}：{item['level']}，积分 {item['points']}，余额 ￥{item['balance']:.2f}" for item in members[:10])
+            reply = "\n".join(
+                f"{item['name']}：{item['level']}，积分 {item['points']}"
+                + (f"，余额 ￥{item['balance']:.2f}" if "balance" in item else "")
+                for item in members[:10]
+            )
     elif intent == "retention":
         reminders = result.get("reminders", [])
         reply = "暂无待跟进提醒。" if not reminders else "\n".join(f"{item['customer_name']}：{item['reason']}" for item in reminders[:10])
@@ -308,8 +327,13 @@ def build_staff_query_graph():
     return graph.compile()
 
 
-def run_staff_query(message: str, requester_id: str) -> dict[str, Any]:
-    state: StaffQueryState = {"message": message, "requester_id": requester_id, **new_trace("staff_readonly_query")}
+def run_staff_query(message: str, requester_id: str, allow_financial: bool = False) -> dict[str, Any]:
+    state: StaffQueryState = {
+        "message": message,
+        "requester_id": requester_id,
+        "allow_financial": allow_financial,
+        **new_trace("staff_readonly_query"),
+    }
     graph = build_staff_query_graph()
     if graph is None:
         logger.warning("LangGraph unavailable, using the same deterministic nodes sequentially: %s", _LANGGRAPH_IMPORT_ERROR)

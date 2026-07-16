@@ -35,7 +35,7 @@ def _staff_headers():
             id=uuid.uuid4(),
             name="退款员工",
             phone=phone,
-            role=UserRole.STYLIST,
+            role=UserRole.ADMIN,
             password_hash=hash_password(PASSWORD),
             is_active=True,
         )
@@ -72,9 +72,17 @@ def test_refund_requires_staff_approval_before_wallet_is_debited():
     )
     refund_id = created.json()["refund_id"]
     before = client.get("/api/wallet", headers=customer_headers).json()
-    denied = client.post(f"/api/refunds/{refund_id}/approve", headers=customer_headers)
+    denied = client.post(
+        f"/api/refunds/{refund_id}/approve",
+        headers=customer_headers,
+        json={"manager_password": PASSWORD},
+    )
     staff_headers = _staff_headers()
-    approved = client.post(f"/api/refunds/{refund_id}/approve", headers=staff_headers)
+    approved = client.post(
+        f"/api/refunds/{refund_id}/approve",
+        headers=staff_headers,
+        json={"manager_password": PASSWORD},
+    )
     after = client.get("/api/wallet", headers=customer_headers).json()
     notifications = client.get("/api/notifications", headers=customer_headers)
     audit_logs = client.get("/api/audit-logs", headers=staff_headers)

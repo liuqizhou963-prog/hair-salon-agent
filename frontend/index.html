@@ -758,7 +758,6 @@
 
 <script>
 const API_BASE = location.protocol === "file:" ? "http://127.0.0.1:8000" : "";
-const AUTH_TOKEN_KEY = "hengyi_access_token";
 const DEFAULT_STYLIST_PHOTO = `${API_BASE}/static/miniprogram/assets/stylists/chen-yu-portrait.png`;
 const CUSTOMER_STYLIST_DISPLAY_LIMIT = 4;
 
@@ -768,8 +767,7 @@ function esc(s) {
 }
 
 function authHeaders() {
-  const token = localStorage.getItem(AUTH_TOKEN_KEY);
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  return {};
 }
 
 function friendlyApiError(status, detail, path) {
@@ -790,9 +788,8 @@ function friendlyApiError(status, detail, path) {
 
 async function apiRequest(path, options = {}) {
   const headers = { ...(options.body ? {"Content-Type":"application/json"} : {}), ...authHeaders(), ...(options.headers || {}) };
-  const r = await fetch(API_BASE + path, { ...options, headers });
+  const r = await fetch(API_BASE + path, { ...options, headers, credentials: "include" });
   if (r.status === 401) {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
     state.authenticated = false;
     if (location.pathname !== "/" || document.querySelector('[data-screen="login"]')?.classList.contains("active") === false) go("login", false);
   }
@@ -845,7 +842,7 @@ function sortStylistsForDisplay(stylists) {
 // STATE
 // =========================================================
 const state = {
-  authenticated: Boolean(localStorage.getItem(AUTH_TOKEN_KEY)),
+  authenticated: false,
   authMode: "login",
   user: { phone: "", name: "", level: "silver", points: 0, balance: 0.00 },
   selectedAmount: 300,
@@ -1484,7 +1481,6 @@ function wireAuth() {
         method: "POST",
         body: JSON.stringify({ phone, password }),
       });
-      localStorage.setItem(AUTH_TOKEN_KEY, token.access_token);
       state.authenticated = true;
       await loadCurrentUser();
       go("mine", false);
@@ -1495,7 +1491,7 @@ function wireAuth() {
 }
 
 function logout() {
-  localStorage.removeItem(AUTH_TOKEN_KEY);
+  apiRequest("/api/auth/logout", { method: "POST" }).catch(() => {});
   state.authenticated = false;
   state.user = { phone: "", name: "", level: "silver", points: 0, balance: 0 };
   state.appointments = [];
@@ -1656,15 +1652,11 @@ async function boot() {
     state.preferredOnly = true;
     localStorage.setItem("preferredOnly", "true");
   }
-  if (state.authenticated) {
-    try {
-      await loadCurrentUser();
-      go(initialPage, false);
-    } catch (error) {
-      state.authenticated = false;
-      go("login", false);
-    }
-  } else {
+  try {
+    await loadCurrentUser();
+    go(initialPage, false);
+  } catch (error) {
+    state.authenticated = false;
     go("login", false);
   }
 

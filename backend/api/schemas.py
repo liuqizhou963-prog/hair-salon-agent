@@ -1,7 +1,7 @@
 """API Pydantic 模型 — 请求/响应校验"""
 
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Any, Optional, List
+from typing import Any, Optional, List, Literal
 
 
 # ===== 健康检查 =====
@@ -26,8 +26,18 @@ class ChatResponse(BaseModel):
     actions: List[str] = Field(default_factory=list, description="Agent 执行了哪些工具")
 
 
+class StaffAgentReplyContext(BaseModel):
+    message_id: str = Field(..., min_length=1, max_length=120, description="被引用消息在当前对话中的编号")
+    role: Literal["user", "assistant"]
+    content: str = Field(..., min_length=1, max_length=4000, description="被引用消息内容")
+
+
 class StaffAgentQueryRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=500, description="员工查询问题")
+    reply_to: Optional[StaffAgentReplyContext] = Field(
+        None,
+        description="可选的被引用历史消息，帮助 Agent 理解当前回复对象",
+    )
 
 
 class StaffAgentQueryResponse(BaseModel):
@@ -38,6 +48,7 @@ class StaffAgentQueryResponse(BaseModel):
     sources: List[str] = Field(default_factory=list)
     trace_id: Optional[str] = None
     trace: dict[str, Any] = Field(default_factory=dict)
+    agent_task: Optional[dict[str, Any]] = None
 
 
 class AppointmentChangeProposalRequest(BaseModel):
@@ -46,6 +57,15 @@ class AppointmentChangeProposalRequest(BaseModel):
     new_stylist_id: Optional[str] = Field(None, description="新的发型师 ID，不传则沿用原发型师")
     service: Optional[str] = Field(None, min_length=1, max_length=100)
     notes: Optional[str] = Field(None, max_length=500)
+
+
+class AppointmentApprovalProposalRequest(BaseModel):
+    appointment_id: str = Field(..., description="待批复预约 ID")
+
+
+class RefundDecisionProposalRequest(BaseModel):
+    refund_id: str = Field(..., description="待处理退款 ID")
+    decision: str = Field(..., pattern="^(approve|reject)$")
 
 
 class AgentTaskResponse(BaseModel):
@@ -61,6 +81,7 @@ class AgentTaskResponse(BaseModel):
 
 class AgentConfirmationRequest(BaseModel):
     confirmed: bool
+    manager_password: Optional[str] = Field(None, min_length=1, max_length=128)
 
 
 class RetentionAgentResponse(BaseModel):
@@ -149,6 +170,27 @@ class AppointmentCreate(BaseModel):
     notes: Optional[str] = Field(None, description="备注")
 
 
+class StaffAppointmentCreate(BaseModel):
+    customer_id: str = Field(..., description="已有客户 ID")
+    stylist_id: str = Field(..., description="发型师 ID")
+    slot_id: str = Field(..., description="可用时间槽 ID")
+    service: str = Field(..., min_length=1, max_length=100, description="服务项目")
+    notes: Optional[str] = Field(None, max_length=500, description="预约备注")
+
+
+class StaffBookingResponse(BaseModel):
+    appointment_id: str
+    customer_id: str
+    customer_name: str
+    customer_phone: Optional[str] = None
+    stylist_id: str
+    stylist_name: str
+    service: str
+    appointment_datetime: str
+    status: str
+    notes: Optional[str] = None
+
+
 class AppointmentResponse(BaseModel):
     appointment_id: str
     customer_name: str
@@ -166,7 +208,7 @@ class CustomerResponse(BaseModel):
     name: str
     phone: Optional[str] = None
     birthday: Optional[str] = None
-    total_spent: float = 0
+    total_spent: Optional[float] = None
     last_visit: Optional[str] = None
 
 
@@ -187,7 +229,7 @@ class MemberCreate(BaseModel):
     phone: str = Field(..., description="客户手机号")
     name: str = Field(..., description="客户姓名")
     birthday: Optional[str] = Field(None, description="生日，MM-DD 格式")
-    level: str = Field("silver", description="会员等级：silver/gold/platinum")
+    level: str = Field("silver", description="历史会员等级；当前展示等级按账户余额动态计算")
 
 
 class MemberResponse(BaseModel):
@@ -196,6 +238,7 @@ class MemberResponse(BaseModel):
     name: str
     phone: Optional[str] = None
     level: str
+    balance: Optional[float] = None
     points: int
     birthday: Optional[str] = None
     birthday_bonus_claimed: bool
@@ -261,6 +304,10 @@ class CustomerPackageResponse(BaseModel):
 class ServiceVerificationCreate(BaseModel):
     customer_package_id: Optional[str] = None
     amount: Optional[float] = Field(None, ge=0)
+
+
+class ServiceCompletionRequest(BaseModel):
+    pass
 
 
 class ServiceVerificationResponse(BaseModel):
@@ -350,6 +397,20 @@ class StaffPerformanceResponse(BaseModel):
     customers: List[StaffPerformanceCustomerResponse] = Field(default_factory=list)
 
 
+class StaffVerifiedServiceResponse(BaseModel):
+    verification_id: str
+    appointment_id: str
+    customer_name: str
+    customer_phone: Optional[str] = None
+    stylist_id: str
+    stylist_name: str
+    service: str
+    amount: float
+    status: str
+    verified_at: str
+    completed_at: Optional[str] = None
+
+
 class StaffOverviewResponse(BaseModel):
     date: str
     customer_count: int = 0
@@ -364,11 +425,16 @@ class StaffOverviewResponse(BaseModel):
     pending_refund: float = 0
     services: List[StaffServiceBreakdownResponse] = Field(default_factory=list)
     performances: List[StaffPerformanceResponse] = Field(default_factory=list)
+    verified_services: List[StaffVerifiedServiceResponse] = Field(default_factory=list)
 
 
 class RefundCreate(BaseModel):
     amount: float = Field(..., gt=0, description="退款金额，单位元")
     reason: Optional[str] = Field(None, max_length=255)
+
+
+class RefundDecisionRequest(BaseModel):
+    manager_password: str = Field(..., min_length=1, max_length=128)
 
 
 class RefundResponse(BaseModel):
@@ -414,6 +480,7 @@ class BirthdayCampaignResponse(BaseModel):
     name: str
     phone: Optional[str] = None
     level: str
+    balance: float = 0
     points: int
     message: str
 
@@ -457,6 +524,75 @@ class ScanResultResponse(BaseModel):
     repurchase: int
     birthday: int
     churn_risk: int
+
+
+class RetentionTaskResponse(BaseModel):
+    task_id: str
+    customer_id: str
+    customer_name: str
+    customer_phone: Optional[str] = None
+    stylist_id: Optional[str] = None
+    stylist_name: Optional[str] = None
+    business_date: str
+    primary_type: str
+    strategy_tags: List[str] = Field(default_factory=list)
+    trigger_reasons: List[dict[str, Any]] = Field(default_factory=list)
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    priority: int
+    status: str
+    suggested_message: Optional[str] = None
+    suggested_coupon_id: Optional[str] = None
+    suggestion_reason: Optional[str] = None
+    last_contact_at: Optional[str] = None
+    last_contact_status: Optional[str] = None
+    next_contact_at: Optional[str] = None
+    created_at: str
+    updated_at: str
+
+
+class RetentionContactResponse(BaseModel):
+    contact_id: str
+    channel: str
+    status: str
+    actual_message: str
+    coupon_id: Optional[str] = None
+    reviewer_id: str
+    sender_id: str
+    attempted_at: str
+    sent_at: Optional[str] = None
+    failed_at: Optional[str] = None
+    provider_message_id: Optional[str] = None
+    failure_reason: Optional[str] = None
+    reply_content: Optional[str] = None
+    replied_at: Optional[str] = None
+    followup_status: Optional[str] = None
+
+
+class RetentionTaskDetailResponse(RetentionTaskResponse):
+    contacts: List[RetentionContactResponse] = Field(default_factory=list)
+
+
+class RetentionSendRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000)
+    coupon_id: Optional[str] = Field(None, max_length=64)
+    simulate_failure: bool = False
+
+
+class RetentionIgnoreRequest(BaseModel):
+    mode: str = Field(..., pattern="^(30_days|90_days|permanent|unsubscribe)$")
+    reason: Optional[str] = Field(None, max_length=500)
+
+
+class RetentionManualFollowupRequest(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500)
+
+
+class RetentionReplyRequest(BaseModel):
+    reply_content: str = Field(..., min_length=1, max_length=2000)
+
+
+class RetentionCloseRequest(BaseModel):
+    reason: Optional[str] = Field(None, max_length=500)
 
 
 # ===== 初始化数据库 =====

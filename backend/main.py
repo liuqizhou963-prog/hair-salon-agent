@@ -22,10 +22,8 @@ from backend.middleware import ApiRateLimitMiddleware, RequestIdMiddleware
 async def lifespan(app: FastAPI):
     validate_security_settings()
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
-    if settings.DATABASE_URL:
-        logger.info(f"Database: PostgreSQL at {settings.DATABASE_URL}")
-    else:
-        logger.info("Database: SQLite (dev mode)")
+    database_kind = "PostgreSQL" if settings.DATABASE_URL.startswith("postgresql") else "SQLite"
+    logger.info("Database: {}", database_kind)
     if settings.LLM_API_KEY:
         logger.info(f"LLM: {settings.LLM_MODEL} via {settings.LLM_API_BASE}")
     else:

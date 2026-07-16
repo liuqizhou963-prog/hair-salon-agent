@@ -68,6 +68,8 @@ ADMIN_TOKEN=your-local-admin-token
 
 设置后，`POST /api/init-db` 必须带请求头 `X-Admin-Token`。本地面试演示如果不需要这个保护，可以保持为空。
 
+充值和留存消息发送默认只在开发演示模式可用；生产环境必须设置 `DEMO_MODE=false`，并接入真实支付回调和真实消息渠道。微信小程序的后端地址配置在 `frontend/miniprogram/config.js`，真机使用时必须改为 HTTPS 合法域名。
+
 启动后打开：
 
 ```text
@@ -104,7 +106,7 @@ http://localhost:8000/docs
 - `DELETE /api/appointments/{appointment_id}`：取消预约
 - `GET /api/staff/schedule`：员工日程
 - `POST /api/members`：创建会员
-- `POST /api/transactions`：记录消费并加积分
+- `POST /api/transactions`：已退役，客户自报消费返回 410；消费由员工服务核验完成后产生
 - `GET /api/marketing/birthdays`：生日营销名单
 
 ## 测试
@@ -113,7 +115,7 @@ http://localhost:8000/docs
 pytest -q
 ```
 
-当前全量测试为 42 条，覆盖登录权限、预约归属、钱包退款、通知已读、迁移、员工只读 Graph、RAG 来源、预约人工确认、留存分层、客户通知、员工页面和初始化幂等性。
+当前全量测试为 121 条（以 `pytest --collect-only -q` 为准），覆盖登录权限、预约归属、钱包退款、通知已读、迁移、员工只读 Graph、RAG 来源、预约人工确认、留存分层、客户通知、员工页面、初始化幂等性和安全反例。
 
 ## 交付检查
 
@@ -128,7 +130,7 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 1. 打开 `http://localhost:8000/api/health`，确认 API 正常。
 2. 打开 `http://localhost:8000/`，确认前端运营台能加载发型师、日程和会员数据。
 3. 在 AI 对话里完成一次推荐、预约、查询和取消。
-4. 在会员营销页创建会员、记录消费，确认积分增加。
+4. 在员工工作台完成服务核验，确认消费、积分和客户累计消费由后台事实产生。
 5. 将会员生日设置为当天 `MM-DD`，点击生日营销，确认名单返回。
 6. 使用员工账号打开 `/staff`，查询“今天有哪些预约”，确认回答带有数据库来源。
 7. 在员工端运行运营分析，查看流失风险、余额客户和会员到期建议。
@@ -142,7 +144,7 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 4. 发送：`我叫李雷，预约护理，slot_id: <slot_id>`。
 5. 在客户预约区域按手机号查询预约。
 6. 发送：`取消预约 <appointment_id>`，确认状态变为 `cancelled`。
-7. 进入会员营销页，创建会员、记录消费、查看积分变化。
+7. 在员工工作台完成一次服务核验，查看消费和积分变化。
 8. 将会员生日设置为今天的 `MM-DD`，点击生日营销查看营销名单。
 
 ## 3 分钟面试演示脚本
@@ -174,7 +176,7 @@ uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
 - `GET /api/staff/schedule`：查看员工日程。
 - `POST /api/members`：创建或更新会员。
 - `GET /api/members`：会员列表。
-- `POST /api/transactions`：记录消费并增加积分。
+- `POST /api/transactions`：已退役，客户不能自行创建消费记录。
 - `GET /api/marketing/birthdays`：生日营销名单。
 
 ## 面试讲法

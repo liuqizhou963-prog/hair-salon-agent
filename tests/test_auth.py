@@ -45,6 +45,34 @@ def test_customer_can_register_login_and_read_current_user():
     assert me.json()["role"] == "customer"
 
 
+def test_browser_auth_uses_httponly_cookie_and_logout_revokes_cookie():
+    browser = TestClient(app)
+    try:
+        phone = "13920000006"
+        registered = browser.post(
+            "/api/auth/register",
+            json={"phone": phone, "name": "Cookie客户", "password": "StrongPass123!"},
+        )
+        assert registered.status_code == 201
+        login = browser.post(
+            "/api/auth/login",
+            json={"phone": phone, "password": "StrongPass123!"},
+        )
+        assert login.status_code == 200
+        cookie = login.cookies.get("access_token")
+        assert cookie
+
+        me = browser.get("/api/auth/me")
+        assert me.status_code == 200
+        assert me.json()["phone"] == phone
+
+        logout = browser.post("/api/auth/logout")
+        assert logout.status_code == 204
+        assert browser.get("/api/auth/me").status_code == 401
+    finally:
+        browser.close()
+
+
 def test_duplicate_registration_and_wrong_password_are_rejected():
     phone = "13920000004"
     _register(phone)

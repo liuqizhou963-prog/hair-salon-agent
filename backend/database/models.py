@@ -1,6 +1,9 @@
 ﻿"""数据库模型定义"""
 
-from sqlalchemy import Column, String, Integer, Float, DateTime, Boolean, ForeignKey, Enum as SQLEnum, Table, Text
+from sqlalchemy import (
+    Boolean, Column, Date, DateTime, Enum as SQLEnum, Float, ForeignKey,
+    Index, Integer, JSON, Numeric, String, Table, Text, UniqueConstraint,
+)
 from sqlalchemy.orm import relationship
 from backend.database.connection import UniversalUUID as UUID
 from datetime import datetime, timedelta
@@ -39,6 +42,34 @@ class ReminderStatus(enum.Enum):
     PENDING = "pending"            # \u5f85\u53d1\u578b\u5e08\u8054\u7cfb
     CONTACTED = "contacted"        # \u5df2\u8054\u7cfb
     DISMISSED = "dismissed"        # \u5df2\u5ffd\u7565
+
+
+class RetentionTaskStatus(enum.Enum):
+    """\u65b0\u7559\u5b58\u5de5\u4f5c\u53f0\u4efb\u52a1\u72b6\u6001\uff0c\u4ee5 RetentionTask \u4e3a\u6743\u5a01\u6765\u6e90\u3002"""
+    PENDING_REVIEW = "pending_review"
+    SENDING = "sending"
+    SENT = "sent"
+    SEND_FAILED = "send_failed"
+    REPLIED = "replied"
+    MANUAL_FOLLOWUP = "manual_followup"
+    COOLING = "cooling"
+    IGNORED = "ignored"
+    CLOSED = "closed"
+
+
+class RetentionContactStatus(enum.Enum):
+    """\u4e00\u6b21\u5b9e\u9645\u89e6\u8fbe\u7684\u7ed3\u679c\u3002"""
+    ATTEMPTING = "attempting"
+    SENT = "sent"
+    FAILED = "failed"
+
+
+class RetentionSuppressionType(enum.Enum):
+    """\u81ea\u52a8\u7559\u5b58\u7684\u62e6\u622a\u539f\u56e0\u3002"""
+    TEMPORARY_IGNORE = "temporary_ignore"
+    PERMANENT_IGNORE = "permanent_ignore"
+    UNSUBSCRIBED = "unsubscribed"
+    MANUAL_FOLLOWUP = "manual_followup"
 
 class WalletDirection(enum.Enum):
     CREDIT = "credit"
@@ -102,7 +133,7 @@ class User(Base):
     
     # \u5ba2\u6237\u4fe1\u606f
     birthday = Column(String(10))  # MM-DD\u683c\u5f0f
-    total_spent = Column(Float, default=0)
+    total_spent = Column(Numeric(12, 2), default=0)
     last_visit = Column(DateTime)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -147,6 +178,14 @@ class Stylist(Base):
 class StylistTimeSlot(Base):
     """\u53d1\u578b\u5e08\u65f6\u95f4\u69fd\u8868"""
     __tablename__ = "stylist_time_slots"
+    __table_args__ = (
+        UniqueConstraint(
+            "stylist_id",
+            "date",
+            "time",
+            name="uq_stylist_time_slots_stylist_date_time",
+        ),
+    )
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     stylist_id = Column(UUID(as_uuid=True), ForeignKey("stylists.id"), nullable=False)
@@ -208,9 +247,13 @@ class Transaction(Base):
     
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
-    appointment_id = Column(UUID(as_uuid=True), ForeignKey("appointments.id"))
+    appointment_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("appointments.id"),
+        unique=True,
+    )
     
-    amount = Column(Float, nullable=False)
+    amount = Column(Numeric(12, 2), nullable=False)
     service = Column(String(100))
     created_at = Column(DateTime, default=datetime.now)
     
@@ -226,7 +269,7 @@ class ServicePackage(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String(100), nullable=False)
     service = Column(String(100), nullable=False)
-    price = Column(Float, nullable=False)
+    price = Column(Numeric(12, 2), nullable=False)
     total_uses = Column(Integer, nullable=False)
     validity_days = Column(Integer, nullable=False, default=365)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -240,7 +283,7 @@ class CustomerPackage(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     customer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     package_id = Column(UUID(as_uuid=True), ForeignKey("service_packages.id"), nullable=False)
-    purchase_price = Column(Float, nullable=False)
+    purchase_price = Column(Numeric(12, 2), nullable=False)
     total_uses = Column(Integer, nullable=False)
     remaining_uses = Column(Integer, nullable=False)
     status = Column(SQLEnum(CustomerPackageStatus), default=CustomerPackageStatus.ACTIVE, nullable=False)
@@ -263,7 +306,7 @@ class ServiceVerification(Base):
     stylist_id = Column(UUID(as_uuid=True), ForeignKey("stylists.id"), nullable=False)
     customer_package_id = Column(UUID(as_uuid=True), ForeignKey("customer_packages.id"))
     service = Column(String(100), nullable=False)
-    amount = Column(Float, nullable=False, default=0)
+    amount = Column(Numeric(12, 2), nullable=False, default=0)
     status = Column(SQLEnum(ServiceVerificationStatus), default=ServiceVerificationStatus.VERIFIED, nullable=False)
     verified_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     verified_at = Column(DateTime, default=datetime.now, nullable=False)
@@ -302,6 +345,99 @@ class ReminderLog(Base):
     # \u5173\u7cfb
     customer = relationship("User", foreign_keys=[customer_id])
     stylist = relationship("Stylist", foreign_keys=[stylist_id])
+
+
+class RetentionTask(Base):
+    """\u65b0\u7559\u5b58\u5de5\u4f5c\u53f0\u7684\u552f\u4e00\u4efb\u52a1\u6765\u6e90\u3002
+
+    \u4e00\u4e2a\u5ba2\u6237\u5728\u4e00\u4e2a\u4e1a\u52a1\u65e5\u4ec5\u80fd\u4ea7\u751f\u4e00\u6761\u4efb\u52a1\u3002\u751f\u65e5\u3001\u590d\u8d2d\u548c\u6d41\u5931\u7684\u540c\u65f6\u547d\u4e2d\u4fdd\u5b58\u5728 trigger_reasons \u4e2d\uff0c\n+    primary_type \u53ea\u8868\u793a\u5f53\u5929\u5458\u5de5\u9700\u8981\u4f18\u5148\u5904\u7406\u7684\u4e3b\u9898\u3002
+    """
+    __tablename__ = "retention_tasks"
+    __table_args__ = (
+        UniqueConstraint("customer_id", "business_date", name="uq_retention_tasks_customer_business_date"),
+        Index("ix_retention_tasks_status_next_contact", "status", "next_contact_at"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    stylist_id = Column(UUID(as_uuid=True), ForeignKey("stylists.id"))
+    business_date = Column(Date, nullable=False)
+
+    primary_type = Column(SQLEnum(ReminderType), nullable=False)
+    strategy_tags = Column(JSON, default=list, nullable=False)
+    trigger_reasons = Column(JSON, default=list, nullable=False)
+    evidence = Column(JSON, default=dict, nullable=False)
+    priority = Column(Integer, default=0, nullable=False)
+    status = Column(SQLEnum(RetentionTaskStatus), default=RetentionTaskStatus.PENDING_REVIEW, nullable=False)
+
+    suggested_message = Column(Text)
+    suggested_coupon_id = Column(String(64))
+    suggestion_reason = Column(Text)
+    agent_trace_id = Column(String(64))
+    rule_version = Column(String(32), default="retention-v2", nullable=False)
+
+    next_contact_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+    customer = relationship("User", foreign_keys=[customer_id])
+    stylist = relationship("Stylist", foreign_keys=[stylist_id])
+    contacts = relationship("RetentionContact", back_populates="task", cascade="all, delete-orphan")
+
+
+class RetentionContact(Base):
+    """\u5b9e\u9645\u53d1\u9001\u7684\u7559\u5b58\u89e6\u8fbe\u8bb0\u5f55\uff0c\u4e0d\u7528\u4efb\u52a1\u72b6\u6001\u66ff\u4ee3\u5b83\u3002"""
+    __tablename__ = "retention_contacts"
+    __table_args__ = (Index("ix_retention_contacts_customer_sent", "customer_id", "sent_at"),)
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_id = Column(UUID(as_uuid=True), ForeignKey("retention_tasks.id"), nullable=False)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    reviewer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    sender_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+
+    channel = Column(String(32), default="mock", nullable=False)
+    status = Column(SQLEnum(RetentionContactStatus), default=RetentionContactStatus.ATTEMPTING, nullable=False)
+    actual_message = Column(Text, nullable=False)
+    coupon_id = Column(String(64))
+    attempted_at = Column(DateTime, default=datetime.now, nullable=False)
+    sent_at = Column(DateTime)
+    failed_at = Column(DateTime)
+    provider_message_id = Column(String(128))
+    failure_reason = Column(Text)
+    reply_content = Column(Text)
+    replied_at = Column(DateTime)
+    followup_status = Column(String(32))
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+    task = relationship("RetentionTask", back_populates="contacts")
+    customer = relationship("User", foreign_keys=[customer_id])
+    reviewer = relationship("User", foreign_keys=[reviewer_id])
+    sender = relationship("User", foreign_keys=[sender_id])
+
+
+class RetentionSuppression(Base):
+    """\u5ba2\u6237\u7684\u5ffd\u7565\u3001\u9000\u8ba2\u6216\u4eba\u5de5\u8ddf\u8fdb\u72b6\u6001\u3002"""
+    __tablename__ = "retention_suppressions"
+    __table_args__ = (Index("ix_retention_suppressions_customer_type", "customer_id", "suppression_type"),)
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    customer_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    suppression_type = Column(SQLEnum(RetentionSuppressionType), nullable=False)
+    starts_at = Column(DateTime, default=datetime.now, nullable=False)
+    ends_at = Column(DateTime)
+    reason = Column(Text)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    released_by = Column(UUID(as_uuid=True), ForeignKey("users.id"))
+    released_at = Column(DateTime)
+    release_reason = Column(Text)
+    created_at = Column(DateTime, default=datetime.now, nullable=False)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, nullable=False)
+
+    customer = relationship("User", foreign_keys=[customer_id])
+    creator = relationship("User", foreign_keys=[created_by])
+    releaser = relationship("User", foreign_keys=[released_by])
 
 
 class WalletAccount(Base):

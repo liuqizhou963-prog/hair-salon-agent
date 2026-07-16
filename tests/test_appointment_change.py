@@ -24,7 +24,7 @@ client = TestClient(app)
 def _staff_headers():
     db = SessionLocal()
     try:
-        staff = db.query(User).filter(User.role == UserRole.STYLIST).first()
+        staff = db.query(User).filter(User.role == UserRole.ADMIN).first()
         staff.password_hash = hash_password("StaffPass123!")
         db.commit()
         phone = staff.phone

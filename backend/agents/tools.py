@@ -22,6 +22,7 @@ from backend.client.knowledge_query import rag_retriever
 from backend.database.connection import SessionLocal
 from backend.database.models import Member, User, UserRole
 from backend.database.retention import RetentionService
+from backend.database.membership import member_display_level
 from backend.database.service import AppointmentService, MemberService
 from backend.staff.schedule import staff_schedule_service
 
@@ -132,7 +133,7 @@ def build_staff_tools() -> List:
         try:
             members = MemberService.get_birthday_members_today(db)
             data = [{"name": m.user.name, "phone": m.user.phone,
-                     "level": m.level.value, "points": m.points} for m in members]
+                     "level": member_display_level(m.level.value, m.user.wallet_account.balance_cents if m.user.wallet_account else 0), "points": m.points} for m in members]
         finally:
             db.close()
         return _dump({"count": len(data), "members": data})
@@ -159,7 +160,7 @@ def build_staff_tools() -> List:
 
     @tool
     def query_membership(identifier: Optional[str] = None) -> str:
-        """查询会员等级、积分和余额；identifier 可填姓名或手机号，不填则返回会员概览。"""
+        """查询会员等级和积分；identifier 可填姓名或手机号，不填则返回会员概览。"""
         db = SessionLocal()
         try:
             query = db.query(Member).join(User).filter(User.role == UserRole.CUSTOMER)
@@ -169,10 +170,9 @@ def build_staff_tools() -> List:
             data = [{
                 "name": member.user.name,
                 "phone": member.user.phone,
-                "level": member.level.value,
+                "level": member_display_level(member.level.value, member.user.wallet_account.balance_cents if member.user.wallet_account else 0),
                 "points": member.points,
                 "expires_at": member.expires_at,
-                "balance": round((member.user.wallet_account.balance_cents if member.user.wallet_account else 0) / 100, 2),
             } for member in members]
             return _dump({"found": bool(data), "members": data})
         finally:
@@ -180,17 +180,17 @@ def build_staff_tools() -> List:
 
     @tool
     def get_retention_reminders() -> str:
-        """查询当前待跟进的留存提醒，返回客户、原因、优先级和建议话术。"""
+        """查询当前仍可处理的留存任务，已发送并进入冷却期的任务不会返回。"""
         db = SessionLocal()
         try:
-            reminders = RetentionService.list_reminders(db, status="pending")
+            tasks = RetentionService.list_tasks(db, today_only=True)
             data = [{
-                "customer_name": item.customer.name if item.customer else "未知",
-                "customer_phone": item.customer.phone if item.customer else "",
-                "priority": item.priority,
-                "reason": item.reason,
-                "suggested_message": item.suggested_message,
-            } for item in reminders]
+                "customer_name": task.customer.name if task.customer else "未知",
+                "customer_phone": task.customer.phone if task.customer else "",
+                "priority": task.priority,
+                "reason": task.suggestion_reason or "留存任务待处理",
+                "suggested_message": task.suggested_message,
+            } for task in tasks]
             return _dump({"count": len(data), "reminders": data})
         finally:
             db.close()
@@ -203,4 +203,3 @@ def build_staff_tools() -> List:
         query_membership,
         get_retention_reminders,
     ]
-

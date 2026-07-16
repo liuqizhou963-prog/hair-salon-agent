@@ -27,7 +27,7 @@ client = TestClient(app)
 def _staff_headers():
     db = SessionLocal()
     try:
-        staff = db.query(User).filter(User.role == UserRole.STYLIST).first()
+        staff = db.query(User).filter(User.role == UserRole.ADMIN).first()
         staff.password_hash = hash_password("StaffPass123!")
         db.commit()
         phone = staff.phone
@@ -37,7 +37,7 @@ def _staff_headers():
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_retention_graph_segments_balance_and_personalized_churn():
+def test_retention_graph_merges_balance_into_one_churn_task():
     assert build_retention_graph() is not None
     db = SessionLocal()
     try:
@@ -46,7 +46,7 @@ def test_retention_graph_segments_balance_and_personalized_churn():
         db.flush()
         customer_id = customer.id
         db.add(WalletAccount(user_id=customer.id, balance_cents=8800))
-        customer.last_visit = datetime.now() - timedelta(days=100)
+        customer.last_visit = datetime.now() - timedelta(days=170)
         db.commit()
     finally:
         db.close()
@@ -55,22 +55,28 @@ def test_retention_graph_segments_balance_and_personalized_churn():
 
     assert response.status_code == 200, response.text
     body = response.json()
-    segments = {item["segment"] for item in body["recommendations"] if item["phone"] == "13970000003"}
-    assert {"balance_customer", "churn_risk"}.issubset(segments)
-    assert "membership_expiring" not in segments
+    recommendations = [item for item in body["recommendations"] if item["phone"] == "13970000003"]
+    assert len(recommendations) == 1
+    recommendation = recommendations[0]
+    assert recommendation["segment"] == "churn_risk"
+    assert "balance_customer" in recommendation["strategy_tags"]
+    assert recommendation["coupon_id"] is None
+    assert recommendation["agent_mode"] == "safe_template"
+    assert any("余额客户" in flag for flag in recommendation["risk_flags"])
     assert body["analysis_basis"]["scanned_customer_count"] > 0
-    assert {rule["segment"] for rule in body["analysis_basis"]["rules"]} >= {"churn_risk", "birthday", "repurchase", "balance_customer"}
+    assert {rule["segment"] for rule in body["analysis_basis"]["rules"]} >= {"churn_risk", "birthday", "repurchase", "contact_guard"}
     assert body["task_id"]
 
     db = SessionLocal()
     try:
         task = db.query(AgentTaskState).filter(
             AgentTaskState.workflow_type == "retention_segmentation",
-            AgentTaskState.requester_id == db.query(User).filter(User.role == UserRole.STYLIST).first().id,
+            AgentTaskState.requester_id == db.query(User).filter(User.role == UserRole.ADMIN).first().id,
         ).order_by(AgentTaskState.created_at.desc()).first()
         assert task is not None
         assert task.status == AgentTaskStatus.COMPLETED
         assert json.loads(task.result_payload)["summary"] == body["summary"]
+        assert body["summary"]["balance_customer"] >= 1
         assert db.query(Notification).filter(Notification.user_id == customer_id).count() == 0
     finally:
         db.close()

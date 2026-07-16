@@ -1,3 +1,5 @@
+const appConfig = require("./config");
+
 function friendlyApiError(statusCode, detail, path) {
   if (statusCode === 401) {
     return path === "/api/auth/login" ? "账号或密码错误" : "登录已失效，请重新登录";
@@ -18,8 +20,7 @@ function friendlyApiError(statusCode, detail, path) {
 
 App({
   globalData: {
-    // 真机或微信开发者工具中可把这里改成后端的局域网地址。
-    apiBase: "http://127.0.0.1:8000",
+    apiBase: appConfig.apiBase,
     token: "",
     user: null,
     selectedAmount: 300,

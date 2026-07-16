@@ -5,7 +5,6 @@ from decimal import Decimal, ROUND_HALF_UP
 import json
 import uuid
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.database.models import (
@@ -41,7 +40,9 @@ def cents_to_amount(cents: int) -> float:
 class FinanceService:
     @staticmethod
     def get_or_create_wallet(db: Session, user: User) -> WalletAccount:
-        wallet = db.query(WalletAccount).filter(WalletAccount.user_id == user.id).first()
+        wallet = db.query(WalletAccount).filter(
+            WalletAccount.user_id == user.id
+        ).with_for_update().first()
         if wallet:
             return wallet
         wallet = WalletAccount(id=uuid.uuid4(), user_id=user.id, balance_cents=0)
@@ -78,7 +79,7 @@ class FinanceService:
             action=action,
             entity_type=entity_type,
             entity_id=entity_id,
-            details=json.dumps(details or {}, ensure_ascii=False),
+            details=json.dumps(details or {}, ensure_ascii=False, default=str),
         )
         db.add(audit)
         return audit
@@ -133,14 +134,58 @@ class FinanceService:
         return wallet, transaction
 
     @classmethod
+    def purchase(
+        cls,
+        db: Session,
+        user: User,
+        amount: float,
+        note: str | None = None,
+        reference_type: str | None = None,
+        reference_id: str | None = None,
+        *,
+        commit: bool = True,
+    ):
+        """Deduct a direct wallet purchase and append an immutable ledger row."""
+        cents = amount_to_cents(amount)
+        wallet = cls.get_or_create_wallet(db, user)
+        if wallet.balance_cents < cents:
+            raise FinanceError("钱包余额不足，无法完成本次消费")
+
+        wallet.balance_cents -= cents
+        transaction = cls._record_wallet_transaction(
+            db,
+            wallet,
+            user,
+            cents,
+            WalletDirection.DEBIT,
+            WalletTransactionType.PURCHASE,
+            note=note or "服务消费",
+            reference_type=reference_type,
+            reference_id=reference_id,
+        )
+        cls.create_notification(
+            db,
+            user.id,
+            NotificationKind.WALLET,
+            "余额消费成功",
+            f"本次消费 {cents_to_amount(cents):.2f} 元，当前余额 {cents_to_amount(wallet.balance_cents):.2f} 元。",
+        )
+        if commit:
+            db.commit()
+            db.refresh(wallet)
+            db.refresh(transaction)
+        return wallet, transaction
+
+    @classmethod
     def request_refund(cls, db: Session, user: User, amount: float, reason: str | None = None):
         cents = amount_to_cents(amount)
         wallet = cls.get_or_create_wallet(db, user)
-        pending_cents = db.query(func.coalesce(func.sum(RefundRequest.amount_cents), 0)).filter(
+        pending_refunds = db.query(RefundRequest.amount_cents).filter(
             RefundRequest.user_id == user.id,
             RefundRequest.status == RefundStatus.PENDING,
-        ).scalar()
-        if cents + int(pending_cents or 0) > wallet.balance_cents:
+        ).with_for_update().all()
+        pending_cents = sum(int(item[0]) for item in pending_refunds)
+        if cents + pending_cents > wallet.balance_cents:
             raise FinanceError("可退款余额不足或已有待处理退款申请")
 
         refund = RefundRequest(
@@ -165,12 +210,14 @@ class FinanceService:
         return refund
 
     @classmethod
-    def approve_refund(cls, db: Session, refund_id: str, actor: User):
+    def approve_refund(cls, db: Session, refund_id: str, actor: User, *, commit: bool = True):
         try:
             refund_uuid = uuid.UUID(refund_id)
         except ValueError as exc:
             raise FinanceError("退款申请不存在") from exc
-        refund = db.query(RefundRequest).filter(RefundRequest.id == refund_uuid).first()
+        refund = db.query(RefundRequest).filter(
+            RefundRequest.id == refund_uuid
+        ).with_for_update().first()
         if not refund:
             raise FinanceError("退款申请不存在")
         if refund.status != RefundStatus.PENDING:
@@ -197,14 +244,15 @@ class FinanceService:
             db, actor.id, "refund.approve", "refund_request", str(refund.id),
             {"amount_cents": refund.amount_cents, "balance_cents": wallet.balance_cents},
         )
-        db.commit()
-        db.refresh(refund)
-        db.refresh(wallet)
-        db.refresh(transaction)
+        if commit:
+            db.commit()
+            db.refresh(refund)
+            db.refresh(wallet)
+            db.refresh(transaction)
         return refund, wallet, transaction
 
     @classmethod
-    def reject_refund(cls, db: Session, refund_id: str, actor: User):
+    def reject_refund(cls, db: Session, refund_id: str, actor: User, *, commit: bool = True):
         try:
             refund_uuid = uuid.UUID(refund_id)
         except ValueError as exc:
@@ -222,8 +270,9 @@ class FinanceService:
             "门店未通过本次退款申请，请联系门店了解详情。",
         )
         cls.create_audit(db, actor.id, "refund.reject", "refund_request", str(refund.id))
-        db.commit()
-        db.refresh(refund)
+        if commit:
+            db.commit()
+            db.refresh(refund)
         return refund
 
     @staticmethod

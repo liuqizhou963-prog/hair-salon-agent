@@ -183,9 +183,10 @@ class ChatAgent:
             }
 
         appointment_time = self._format_iso_datetime(result["appointment_datetime"])
+        status_text = "已提交，等待店长确认" if result.get("status") == "pending" else "已确认"
         return {
             "reply": (
-                f"预约成功。已为{name}预约 {appointment_time} 的{service_type}服务，"
+                f"预约{status_text}。已为{name}预约 {appointment_time} 的{service_type}服务，"
                 f"预约编号：{result['appointment_id']}。"
             ),
             "actions": ["book_appointment"],

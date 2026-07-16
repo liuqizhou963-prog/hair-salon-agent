@@ -10,11 +10,18 @@
 - role="staff"    → B 端店员助手
 """
 
+import json
+import re
 from typing import Any, Dict, List, Optional
 
 from loguru import logger
 
 from backend.agents.chat_agent import chat_agent
+from backend.agents.staff_operation_planner import (
+    LLM_PLANNER_PROMPT,
+    StaffOperationPlan,
+    fallback_staff_operation_plan,
+)
 from backend.agents.tools import build_customer_tools, build_staff_tools
 from backend.config import settings
 from backend.database.connection import SessionLocal
@@ -50,12 +57,14 @@ CUSTOMER_SYSTEM_PROMPT = (
 )
 
 STAFF_SYSTEM_PROMPT = (
-    "你是美发门店的店员内部助手，服务对象是门店员工，不是顾客。你的目标是帮店员"
-    "快速查询全店日程、今日生日会员、顾客历史，以及护理话术支持。\n"
+    "你是美发门店的店长内部助手，服务对象是拥有最高工作台权限的店长，不是顾客。你的目标是帮店长"
+    "查询信息，并通过受控工作台能力完成预约、服务、退款和留存操作。\n"
     "工作准则：\n"
     "1. 所有数据（日程、会员、顾客历史）必须来自工具真实返回，不要编造。\n"
     "2. 护理话术通过 search_knowledge 检索后给出。\n"
-    "3. 回复面向店员，可以简洁列点，便于快速执行。"
+    "3. 对工作台写操作先确认对象和参数；退款、改约、完成服务必须等待店长确认。\n"
+    "4. 你不能直接拼接 SQL、接口地址或业务 ID，实际写入必须交给后端白名单能力。\n"
+    "5. 回复面向店长，可以简洁列点，便于快速执行。"
 )
 
 
@@ -100,6 +109,35 @@ class LangChainAgent:
             result = self._run_rule_fallback(message=message, phone=phone, name=name, role=role)
             result["actions"] = ["rule_agent_fallback", *result.get("actions", [])]
             return result
+
+    def plan_staff_operation(self, message: str) -> StaffOperationPlan:
+        """先走本地高确定性解析，只有无法识别时才请求 LLM 结构化规划。"""
+        fallback = fallback_staff_operation_plan(message)
+        known_module_words = (
+            "预约", "退款", "核验", "核销", "服务", "留存", "提醒", "会员", "客户",
+        )
+        if (
+            fallback.action != "unknown"
+            or any(word in message for word in known_module_words)
+            or not self.enabled
+            or not self.llm
+        ):
+            return fallback
+
+        try:
+            response = self.llm.invoke(
+                f"{LLM_PLANNER_PROMPT}\n\n只输出一个 JSON 对象，不要 Markdown 代码块。员工原话：{message}"
+            )
+            content = getattr(response, "content", response)
+            if not isinstance(content, str):
+                content = str(content)
+            matched = re.search(r"\{.*\}", content, re.DOTALL)
+            if not matched:
+                return fallback
+            return StaffOperationPlan.model_validate(json.loads(matched.group(0)))
+        except Exception as exc:  # pragma: no cover - depends on configured provider
+            logger.warning(f"Staff operation planner failed, using local parser: {exc}")
+            return fallback
 
     @staticmethod
     def _run_rule_fallback(

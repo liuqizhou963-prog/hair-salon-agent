@@ -14,12 +14,17 @@ def test_customer_booking_to_staff_confirmation_to_notification():
     try:
         staff = staff_db.query(User).filter(User.role == UserRole.STYLIST).first()
         staff.password_hash = hash_password("StaffPass123!")
+        manager = staff_db.query(User).filter(User.role == UserRole.ADMIN).first()
+        manager.password_hash = hash_password("ManagerPass123!")
         staff_db.commit()
         staff_phone = staff.phone
+        manager_phone = manager.phone
     finally:
         staff_db.close()
     staff_token = client.post("/api/auth/login", json={"phone": staff_phone, "password": "StaffPass123!"}).json()["access_token"]
     staff_headers = {"Authorization": f"Bearer {staff_token}"}
+    manager_token = client.post("/api/auth/login", json={"phone": manager_phone, "password": "ManagerPass123!"}).json()["access_token"]
+    manager_headers = {"Authorization": f"Bearer {manager_token}"}
 
     customer_phone = "13970000005"
     assert client.post(
@@ -55,7 +60,7 @@ def test_customer_booking_to_staff_confirmation_to_notification():
 
     query = client.post(
         "/api/staff/agent/query",
-        headers=staff_headers,
+        headers=manager_headers,
         json={"message": f"{booking_date}有哪些预约？"},
     )
     assert query.status_code == 200
@@ -63,7 +68,7 @@ def test_customer_booking_to_staff_confirmation_to_notification():
 
     proposal = client.post(
         "/api/staff/agent/appointment-change/propose",
-        headers=staff_headers,
+        headers=manager_headers,
         json={"appointment_id": appointment_id, "new_slot_id": available[1]["slot_id"]},
     )
     assert proposal.status_code == 200, proposal.text
@@ -71,7 +76,7 @@ def test_customer_booking_to_staff_confirmation_to_notification():
 
     confirmed = client.post(
         f"/api/staff/agent/tasks/{proposal.json()['task_id']}/confirm",
-        headers=staff_headers,
+        headers=manager_headers,
         json={"confirmed": True},
     )
     assert confirmed.status_code == 200, confirmed.text
